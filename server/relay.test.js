@@ -65,4 +65,93 @@ test('relay preserves transitions, rejects takeover, and clears stale held state
     bad.send(JSON.stringify({ type: 'fingers', state: 0, thumb, seq: 0, t: 1 }))
     assert.equal((await closed)[0], 1008)
   }
+  for (const timestamp of ['-1', 'null', '"1"', '1e999']) {
+    const bad = new WebSocket(url)
+    await once(bad, 'open')
+    const closed = once(bad, 'close')
+    bad.send(JSON.stringify({ role: 'controller' }))
+    bad.send(`{"type":"fingers","state":0,"thumb":false,"seq":0,"t":${timestamp}}`)
+    assert.equal((await closed)[0], 1008)
+  }
+})
+
+test('consecutive sequences accept decreasing timestamps without changing event data', async context => {
+  const server = startRelay(0, '127.0.0.1')
+  context.after(async () => {
+    for (const socket of server.clients) socket.terminate()
+    await new Promise(resolve => server.close(resolve))
+  })
+  await once(server, 'listening')
+  const url = `ws://127.0.0.1:${server.address().port}`
+  const trainer = new WebSocket(url)
+  await once(trainer, 'open')
+  trainer.send(JSON.stringify({ role: 'trainer' }))
+  const controller = new WebSocket(url)
+  await once(controller, 'open')
+  controller.send(JSON.stringify({ role: 'controller' }))
+  for (const expected of [
+    { type: 'fingers', state: 0, thumb: false, seq: 0, t: 110 },
+    { type: 'fingers', state: 8, thumb: false, seq: 1, t: 105 },
+    { type: 'fingers', state: 8, thumb: true, seq: 2, t: 100 },
+    { type: 'fingers', state: 0, thumb: false, seq: 3, t: 0 },
+  ]) {
+    const forwarded = message(trainer, value => value.type === 'fingers')
+    controller.send(JSON.stringify(expected))
+    assert.deepEqual(await forwarded, expected)
+  }
+})
+
+test('relay preserves actual geometry and multitouch data independently of the MIDI sequence', async context => {
+  const server = startRelay(0, '127.0.0.1')
+  context.after(async () => {
+    for (const socket of server.clients) socket.terminate()
+    await new Promise(resolve => server.close(resolve))
+  })
+  await once(server, 'listening')
+  const url = `ws://127.0.0.1:${server.address().port}`
+  const trainer = new WebSocket(url)
+  await once(trainer, 'open')
+  trainer.send(JSON.stringify({ role: 'trainer' }))
+  const controller = new WebSocket(url)
+  await once(controller, 'open')
+  controller.send(JSON.stringify({ role: 'controller' }))
+  const screen = { width: 390, height: 750,
+    centers: [{ x: 0.15, y: 0.8 }, { x: 0.2, y: 0.4 }, { x: 0.4, y: 0.3 }, { x: 0.6, y: 0.35 }, { x: 0.8, y: 0.45 }],
+    touches: [] }
+  let expected = { type: 'fingers', state: 0, thumb: false, seq: 0, t: 20, screen }
+  let received = message(trainer, value => value.type === 'fingers')
+  controller.send(JSON.stringify(expected))
+  assert.deepEqual(await received, expected)
+  const held = { ...screen, touches: [{ id: 11, x: 0.2, y: 0.4, finger: 0 }, { id: 12, x: 0.4, y: 0.3, finger: 1 }] }
+  expected = { ...expected, state: 3, seq: 1, t: 19, screen: held }
+  received = message(trainer, value => value.type === 'fingers')
+  controller.send(JSON.stringify(expected))
+  assert.deepEqual(await received, expected)
+  const moved = { ...held, touches: [{ ...held.touches[0], x: -0.2, y: 1.1 }, held.touches[1]] }
+  received = message(trainer, value => value.type === 'touches')
+  controller.send(JSON.stringify({ type: 'touches', screen: moved }))
+  assert.deepEqual(await received, { type: 'touches', screen: moved })
+  const lateTrainer = new WebSocket(url)
+  await once(lateTrainer, 'open')
+  received = message(lateTrainer, value => value.type === 'touches')
+  lateTrainer.send(JSON.stringify({ role: 'trainer' }))
+  assert.deepEqual(await received, { type: 'touches', screen: moved })
+  controller.send(JSON.stringify({ type: 'touches', screen: { ...screen, width: 0 } }))
+  expected = { ...expected, state: 2, seq: 2, t: 18, screen: { ...screen, touches: [held.touches[1]] } }
+  received = message(trainer, value => value.type === 'fingers')
+  controller.send(JSON.stringify(expected))
+  assert.deepEqual(await received, expected)
+  expected = { ...expected, state: 0, seq: 3, t: 17, screen }
+  received = message(trainer, value => value.type === 'fingers')
+  controller.send(JSON.stringify(expected))
+  assert.deepEqual(await received, expected)
+  const disconnected = message(trainer, value => value.type === 'status' && !value.controllerConnected)
+  controller.close()
+  await disconnected
+  const replacement = new WebSocket(url)
+  await once(replacement, 'open')
+  replacement.send(JSON.stringify({ role: 'controller' }))
+  received = message(trainer, value => value.type === 'fingers')
+  replacement.send(JSON.stringify({ type: 'fingers', state: 0, thumb: false, seq: 0, t: 0 }))
+  assert.deepEqual(await received, { type: 'fingers', state: 0, thumb: false, seq: 0, t: 0 })
 })

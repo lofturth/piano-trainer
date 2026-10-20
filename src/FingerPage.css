@@ -20,11 +20,11 @@ html:has(.controller-page), body:has(.controller-page) { overflow: hidden; overs
 .controller-toolbar button:focus-visible { outline: 2px solid #aadbdc; outline-offset: 2px; }
 .playing-surface { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse at 15% 10%, #ffffff30, transparent 60%), radial-gradient(ellipse at 80% 95%, #6e3abf55, transparent 65%), #15122c; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
 .playing-surface svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.playing-surface [data-finger="0"] { --region-color: 24, 225, 167; }
-.playing-surface [data-finger="1"] { --region-color: 35, 169, 255; }
-.playing-surface [data-finger="2"] { --region-color: 172, 101, 255; }
-.playing-surface [data-finger="3"] { --region-color: 255, 177, 45; }
-.playing-surface [data-finger="4"] { --region-color: 255, 75, 137; }
+.playing-surface [data-finger="0"], .touch-monitor [data-finger="0"] { --region-color: 24, 225, 167; }
+.playing-surface [data-finger="1"], .touch-monitor [data-finger="1"] { --region-color: 35, 169, 255; }
+.playing-surface [data-finger="2"], .touch-monitor [data-finger="2"] { --region-color: 172, 101, 255; }
+.playing-surface [data-finger="3"], .touch-monitor [data-finger="3"] { --region-color: 255, 177, 45; }
+.playing-surface [data-finger="4"], .touch-monitor [data-finger="4"] { --region-color: 255, 75, 137; }
 .trainer-thumb { padding: 12px; border: 1px solid var(--border); border-radius: 12px; font: 600 24px/1.3 var(--sans); }
 .midi-panel { padding: 16px; border: 1px solid var(--border); border-radius: 12px; }
 .midi-panel button, .midi-panel select { margin: 4px 8px; padding: 8px; font: inherit; }

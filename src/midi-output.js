@@ -2,9 +2,9 @@ import { pitchForState } from './pitch-mapping.js'
 
 const chromaticNotes = ['C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4']
 
-export function midiNoteForState(state) {
+export function midiNoteForState(state, thumb = false) {
   const index = chromaticNotes.indexOf(pitchForState(state))
-  return index < 0 ? null : 60 + index
+  return index < 0 ? null : 60 + index + (thumb ? 12 : 0)
 }
 
 export class MidiOutput {
@@ -13,6 +13,7 @@ export class MidiOutput {
     this.output = null
     this.activeNote = null
     this.previousState = 0
+    this.previousThumb = false
   }
 
   stop() {
@@ -26,10 +27,11 @@ export class MidiOutput {
     try { this.stop() } finally { this.output = output }
   }
 
-  play(state) {
-    const changed = state !== this.previousState
+  play(state, thumb = false) {
+    const changed = state !== this.previousState || thumb !== this.previousThumb
     this.previousState = state
-    const note = midiNoteForState(state)
+    this.previousThumb = thumb
+    const note = midiNoteForState(state, thumb)
     if (note === null) {
       this.stop()
       return
@@ -38,6 +40,6 @@ export class MidiOutput {
     this.stop()
     this.activeNote = note
     this.output.send([0x90, note, 100])
-    this.onNoteOn(pitchForState(state))
+    this.onNoteOn(pitchForState(state, thumb))
   }
 }

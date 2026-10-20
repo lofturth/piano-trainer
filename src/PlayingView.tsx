@@ -1,9 +1,13 @@
 import { majorScaleMapping } from './pitch-mapping.js'
 import './PlayingView.css'
+import TouchMonitor from './TouchMonitor.tsx'
+import type { Touchscreen } from './touchscreen.js'
 
 const fingers = ['Index', 'Middle', 'Ring', 'Pinky']
 
-export default function PlayingView({ history, fingerState }: { history: string[]; fingerState: number }) {
+export default function PlayingView({ history, fingerState, thumb, screen }: {
+  history: string[]; fingerState: number; thumb: boolean; screen: Touchscreen | null
+}) {
   const current = history.at(-1)
   return <section className="playing-view" aria-label="Playing View">
     <div className="played-current">
@@ -23,7 +27,9 @@ export default function PlayingView({ history, fingerState }: { history: string[
         })}
       </div>
       <p className="live-fingering-hint">Live fingers may change while the last played note stays the same.</p>
+      <p className={thumb ? 'live-thumb held' : 'live-thumb'}>Thumb: {thumb ? 'held · octave +12' : 'up · base octave'}</p>
     </section>
+    <TouchMonitor screen={screen} fingerState={fingerState} thumb={thumb} />
     <section className="played-history" aria-label="Note history">
       <h2>Last 20 notes</h2>
       <p>Oldest → newest</p>

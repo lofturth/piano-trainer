@@ -1,10 +1,12 @@
 import { WebSocket, WebSocketServer } from 'ws'
 import { pathToFileURL } from 'node:url'
+import { validScreen } from '../src/touchscreen.js'
 
 export function startRelay(port = 8765, host = '0.0.0.0') {
   const server = new WebSocketServer({ port, host, maxPayload: 4096 })
   let controller = null
   let latest = null
+  let latestScreen = null
   let lastSeen = 0
   const send = (socket, message) => {
     if (socket.readyState !== WebSocket.OPEN) return
@@ -20,6 +22,7 @@ export function startRelay(port = 8765, host = '0.0.0.0') {
     if (controller !== socket) return
     controller = null
     latest = null
+    latestScreen = null
     status()
   }
   server.on('connection', socket => {
@@ -41,9 +44,20 @@ export function startRelay(port = 8765, host = '0.0.0.0') {
         }
         status()
         if (role === 'trainer' && latest) send(socket, latest)
+        if (role === 'trainer' && latestScreen) send(socket, { type: 'touches', screen: latestScreen })
         return
       }
       if (socket !== controller) return
+      if (message.type === 'touches') {
+        if (validScreen(message.screen)) {
+          lastSeen = performance.now()
+          latestScreen = message.screen
+          for (const peer of server.clients) {
+            if (peer.role === 'trainer') send(peer, { type: 'touches', screen: latestScreen })
+          }
+        }
+        return
+      }
       if (message.type === 'heartbeat') {
         lastSeen = performance.now()
         return
@@ -52,12 +66,16 @@ export function startRelay(port = 8765, host = '0.0.0.0') {
       if (type !== 'fingers' || !Number.isInteger(state) || state < 0 || state > 15
         || typeof thumb !== 'boolean'
         || !Number.isSafeInteger(seq) || seq < 0 || !Number.isFinite(t) || t < 0
-        || (latest ? seq !== latest.seq + 1 || t < latest.t : seq !== 0 || state !== 0 || thumb)) {
+        || (latest ? seq !== latest.seq + 1 : seq !== 0 || state !== 0 || thumb)) {
         release(socket)
         return socket.close(1008, 'Invalid finger sequence; reconnect')
       }
       lastSeen = performance.now()
       latest = { type, state, thumb, seq, t }
+      if (validScreen(message.screen)) {
+        latestScreen = message.screen
+        latest.screen = latestScreen
+      }
       for (const peer of server.clients) {
         if (peer.role === 'trainer') send(peer, latest)
       }

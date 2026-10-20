@@ -64,8 +64,20 @@ test('unmapped partial releases silence MIDI without erasing the last played not
   const player = new MidiOutput(note => { history = appendPlayedNote(history, note) })
   const events = []
   player.setOutput({ send: data => events.push(data) })
-  for (const state of [12, 4, 0]) player.play(state)
+  for (const state of [12, 8, 0]) player.play(state)
   assert.equal(player.activeNote, null)
   assert.deepEqual(events, [[0x90, 65, 100], [0x80, 65, 0]])
   assert.deepEqual(history, ['F4'])
+})
+
+test('history and last played note follow actual upper/lower octave Note Ons', () => {
+  let history = []
+  const player = new MidiOutput(note => { history = appendPlayedNote(history, note) })
+  player.setOutput({ send: () => {} })
+  player.play(3)
+  player.play(3, true)
+  player.play(3, true)
+  player.play(3, false)
+  player.play(0, true)
+  assert.deepEqual(history, ['C4', 'C5', 'C4'])
 })

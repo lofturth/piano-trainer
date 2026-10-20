@@ -4,6 +4,8 @@ import { pitchForState } from './pitch-mapping.js'
 import MidiPanel from './MidiPanel.tsx'
 import PlayingView from './PlayingView.tsx'
 import { appendPlayedNote } from './note-history.js'
+import { validScreen } from './touchscreen.js'
+import type { Touchscreen } from './touchscreen.js'
 import './FingerPage.css'
 
 const fingers = ['Index', 'Middle', 'Ring', 'Pinky']
@@ -14,14 +16,27 @@ export default function FingerPage({ controller }: { controller: boolean }) {
   const [lastEvent, setLastEvent] = useState<{ seq: number; t: number } | null>(null)
   const [playingView, setPlayingView] = useState(false)
   const [history, setHistory] = useState<string[]>([])
+  const [screen, setScreen] = useState<Touchscreen | null>(null)
+  const screenRef = useRef<Touchscreen | null>(null)
+  const screenTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sendScreen = useRef<() => void>(() => {})
+  const clearTouches = useRef<() => void>(() => {})
+  const registerTouchReset = useCallback((clear: () => void) => { clearTouches.current = clear }, [])
+  const onScreen = useCallback((value: Touchscreen) => {
+    screenRef.current = value
+    if (screenTimer.current === null) screenTimer.current = setTimeout(() => {
+      screenTimer.current = null
+      sendScreen.current()
+    }, 34)
+  }, [])
   const recordNote = useCallback((note: string) => {
     setHistory(previous => appendPlayedNote(previous, note))
   }, [])
   const pointers = useRef(new Map<number, number>())
   const current = useRef(0)
   const transmit = useRef<(state: number, time: number) => void>(() => {})
-  const midiReceive = useRef<(state: number) => void>(() => {})
-  const registerMidi = useCallback((receive: (state: number) => void) => { midiReceive.current = receive }, [])
+  const midiReceive = useRef<(state: number, thumb?: boolean) => void>(() => {})
+  const registerMidi = useCallback((receive: (state: number, thumb?: boolean) => void) => { midiReceive.current = receive }, [])
 
   useEffect(() => {
     let socket: WebSocket | null = null
@@ -31,10 +46,12 @@ export default function FingerPage({ controller }: { controller: boolean }) {
     let receivedAt = performance.now()
     const clear = () => {
       midiReceive.current(0)
+      clearTouches.current()
       pointers.current.clear()
       current.current = 0
       setState(0)
       setLastEvent(null)
+      setScreen(null)
     }
     const connect = () => {
       if (disposed || document.hidden) return
@@ -59,9 +76,12 @@ export default function FingerPage({ controller }: { controller: boolean }) {
           setStatus(message.controllerConnected ? 'Controller connected' : 'Relay connected · waiting for controller')
           if (!controller && !message.controllerConnected) clear()
         } else if (!controller && message.type === 'fingers') {
-          midiReceive.current(message.state)
+          midiReceive.current(message.state, message.thumb)
+          if (validScreen(message.screen)) setScreen(message.screen)
           setState(message.state | (message.thumb ? 16 : 0))
           setLastEvent({ seq: message.seq, t: message.t })
+        } else if (!controller && message.type === 'touches' && validScreen(message.screen)) {
+          setScreen(message.screen)
         }
       }
       connection.onerror = () => connection.close()
@@ -81,11 +101,20 @@ export default function FingerPage({ controller }: { controller: boolean }) {
         socket.close()
         return
       }
-      const message = { type: 'fingers', state: value & 15, thumb: Boolean(value & 16), seq: sequence++, t: time }
+      if (screenTimer.current !== null) clearTimeout(screenTimer.current)
+      screenTimer.current = null
+      const message = { type: 'fingers', state: value & 15, thumb: Boolean(value & 16), seq: sequence++, t: time,
+        ...(screenRef.current ? { screen: screenRef.current } : {}) }
       socket.send(JSON.stringify(message))
       setLastEvent(message)
     }
+    sendScreen.current = () => {
+      if (controller && socket?.readyState === WebSocket.OPEN && socket.bufferedAmount < 65536 && screenRef.current) {
+        socket.send(JSON.stringify({ type: 'touches', screen: screenRef.current }))
+      }
+    }
     const suspend = () => {
+      clearTouches.current()
       if (controller && current.current !== 0) transmit.current(0, performance.now())
       clear()
       clearTimeout(retry)
@@ -100,6 +129,7 @@ export default function FingerPage({ controller }: { controller: boolean }) {
     }
     const blur = () => {
       if (!controller) return
+      clearTouches.current()
       pointers.current.clear()
       if (current.current !== 0) transmit.current(0, performance.now())
       current.current = 0
@@ -128,6 +158,9 @@ export default function FingerPage({ controller }: { controller: boolean }) {
       window.removeEventListener('blur', blur)
       socket?.close()
       transmit.current = () => {}
+      sendScreen.current = () => {}
+      if (screenTimer.current !== null) clearTimeout(screenTimer.current)
+      screenTimer.current = null
     }
   }, [controller])
 
@@ -143,6 +176,7 @@ export default function FingerPage({ controller }: { controller: boolean }) {
   }, [])
   const press = useCallback((pointer: number, finger: number, time: number) => update(pointer, time, finger), [update])
   const reset = useCallback((time: number) => {
+    clearTouches.current()
     pointers.current.clear()
     if (current.current !== 0) {
       current.current = 0
@@ -151,7 +185,8 @@ export default function FingerPage({ controller }: { controller: boolean }) {
     }
   }, [])
 
-  if (controller) return <ControllerSurface state={state} status={status} press={press} release={update} reset={reset} />
+  if (controller) return <ControllerSurface state={state} status={status} press={press} release={update} reset={reset}
+    onScreen={onScreen} registerTouchReset={registerTouchReset} />
 
   return <main className={playingView ? 'finger-page playing-mode' : 'finger-page'}>
     <nav><a href="/">Starter</a> · <a href={controller ? '/trainer' : '/controller'}>{controller ? 'Trainer' : 'Controller'}</a></nav>
@@ -160,10 +195,10 @@ export default function FingerPage({ controller }: { controller: boolean }) {
       <button type="button" aria-pressed={!playingView} onClick={() => setPlayingView(false)}>Trainer</button>
       <button type="button" aria-pressed={playingView} onClick={() => setPlayingView(true)}>Playing View</button>
     </div>
-    <div hidden={!playingView}><PlayingView history={history} fingerState={state & 15} /></div>
+    <div hidden={!playingView}><PlayingView history={history} fingerState={state & 15} thumb={Boolean(state & 16)} screen={screen} /></div>
     <div hidden={playingView}>
     <p role="status">{status}</p>
-    <output className="trainer-note" aria-label="Mapped note" aria-live="polite">{pitchForState(state & 15)}</output>
+    <output className="trainer-note" aria-label="Mapped note" aria-live="polite">{pitchForState(state & 15, Boolean(state & 16))}</output>
     <output className="finger-state" aria-label="Finger state">{(state & 15).toString(2).padStart(4, '0')}</output>
     <p>Bits: Pinky · Ring · Middle · Index (Index = bit 0)</p>
     <p className={(state & 16) ? 'trainer-thumb held' : 'trainer-thumb'}>Thumb: {(state & 16) ? 'pressed' : 'released'}</p>

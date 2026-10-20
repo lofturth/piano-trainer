@@ -24,7 +24,11 @@ Pinky/Ring/Middle/Index, so Index alone is `0001`. Each state transition sends
 monotonic timestamp in milliseconds. Each new connection starts at sequence 0
 with an all-released snapshot (`state:0, thumb:false`). Thumb is independent of
 the unchanged four pitch bits: thumb-only transitions also increment sequence.
-The relay accepts older messages without thumb as `false`. Phone timestamps are
+Finger messages may also include a `screen` snapshot: actual surface width/height
+in CSS pixels, normalized calibration centers (Thumb first), and active touches
+`{id,x,y,finger}`. Assigned fingers use Index=0 through Pinky=3, Thumb=4, or null
+during calibration. Coordinates are surface-relative and not clamped, so captured
+drags outside the surface remain visible. The relay accepts older messages without thumb as `false`. Phone timestamps are
 not Mac wall-clock times.
 Touches stay assigned to their original region until release or cancellation,
 even when dragged across a boundary. Multiple touches in one region hold that
@@ -98,12 +102,29 @@ Playing View also shows live Index/Middle/Ring/Pinky activity from raw bits 0–
 and highlights the reference fingering matching the current combination. These
 are visual only: MIDI follows mapped state changes independently, including
 partial releases. Unmapped states silence MIDI but retain the last-played note. Thumb does not affect these
-four indicators or the reference highlight.
+four indicators or the reference highlight. A separate live thumb indicator shows
+the octave modifier. The compact touchscreen monitor uses the phone's actual
+aspect ratio and the same Voronoi/circle geometry functions as the controller.
+White touch markers are inside their assigned region, amber markers have crossed
+into another region while retaining their original finger identity, and red
+markers are outside the surface or have no calibrated regions. The regions cover
+the entire surface: there are no unassigned gaps inside a calibrated screen.
+Only touches received by the playing surface can be reported; iOS-reserved areas
+and touches intercepted by the gear are not available to the monitor.
+
+Touch-down/up snapshots accompany immediate finger messages. Moves and calibration/
+resize updates use `touches` messages coalesced to at most about 30 Hz, only when
+changed, without consuming pitch sequence numbers or generating MIDI. Stationary
+touches add no movement traffic. Reconnect sends current geometry with an empty
+touch snapshot. Touch end/cancel, blur, backgrounding, resize, and disconnection
+clear markers; late trainer connections receive the latest geometry/positions.
+Invalid diagnostic payloads are ignored without rejecting otherwise valid MIDI
+state messages. Refresh both browser pages after updating and restart the relay.
 
 Playing View records only successfully submitted MIDI Note On messages, not raw
 finger changes; no output means no history entries. Releases into mapped pitches
-can generate Note On and add history. Note Off, unmapped states, and thumb-only
-events do not add entries or erase the last note.
+can generate Note On and add history. Thumb octave changes also add the actual
+transposed Note On. Note Off and unmapped states do not add entries or erase the last note.
 History lasts for the current page session and is cleared by a browser refresh.
 
 Open `/trainer` using `http://localhost:5173` in a Web MIDI-capable browser
@@ -116,15 +137,19 @@ IAC Driver → Device is online. Select that bus as the trainer's output and as
 the MIDI input in Vital or its host. See [Apple's IAC setup guide](https://support.apple.com/guide/audio-midi-setup/transfer-midi-information-between-apps-ams1013/mac).
 
 The experimental Candidate 1 mapping uses fingering patterns in Index/Middle/Ring/Pinky
-order: `1100→C4`, `1010→D4`, `1001→E4`, `0011→F4`, `0101→G4`,
+order: `1100→C4`, `1010→D4`, `1001→E4`, `0011→F4`, `0010→G4`,
 `0110→A4`, `1000→B4` (MIDI 60, 62, 64, 65, 67, 69, 71). All other patterns
 have no mapped pitch. The raw protocol still uses Index as bit 0, so Index alone is raw
 `0001` but fingering `1000`; the raw binary displays are unchanged.
-Output uses channel 1 and velocity 100. Thumb stays visible but has no musical effect.
+Output uses channel 1 and velocity 100. Thumb transposes mapped notes up 12
+semitones (C5–B5, MIDI 72, 74, 76, 77, 79, 81, 83). Pressing/releasing thumb
+while a note sounds switches octave immediately, with Note Off before Note On.
+Thumb-only and unmapped combinations remain silent; the base assignments above
+are unchanged. Last-played note/history show the actual octave sent to MIDI.
 MIDI follows the current four-finger state. A change to a different mapped pitch
 releases the sounding note before starting the new one, whether fingers were
 pressed, released, or both. Unmapped states and all four fingers up stop the
-sounding note. Same-pitch states, duplicates and thumb-only changes do not retrigger.
+sounding note. Same effective pitches and duplicate states do not retrigger.
 Output selection does not replay an already-held fingering; a new pitch-state
 change is required.
 Controller loss, MIDI disable/output switching, page hiding and navigation still
@@ -133,8 +158,10 @@ loss requires selecting the port again; there is no automatic port selection.
 MIDI is handled directly per received event, not from batched React rendering.
 No internal sound is generated.
 
-Test permission denial, IAC/Vital routing, pitch changes, duplicate/thumb-only
-events, output hot-plugging, and cleanup on disconnect/hide/refresh manually.
+Test permission denial, IAC/Vital routing, pitch/octave changes, duplicate events,
+output hot-plugging, and cleanup on disconnect/hide/refresh manually. Also verify
+simultaneous touches, boundary/outside drags, touch cancellation, monitor alignment,
+calibration/rotation, and compact layout on the actual iPhone/Mac.
 Note Off delivery is best-effort when a port disappears or a browser/process
 terminates abruptly; use Vital/host panic if necessary. Keep the trainer visible
 while playing; switching to another app alone does not disable MIDI.

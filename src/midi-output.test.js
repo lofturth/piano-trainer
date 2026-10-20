@@ -11,10 +11,11 @@ function setup() {
 }
 
 test('major-scale mapping produces MIDI 60, 62, 64, 65, 67, 69, 71', () => {
-  for (const [state, note] of [[3, 60], [5, 62], [9, 64], [12, 65], [10, 67], [6, 69], [1, 71]]) {
+  for (const [state, note] of [[3, 60], [5, 62], [9, 64], [12, 65], [4, 67], [6, 69], [1, 71]]) {
     assert.equal(midiNoteForState(state), note)
+    assert.equal(midiNoteForState(state, true), note + 12)
   }
-  for (const state of [0, 2, 4, 7, 8, 11, 13, 14, 15, -1, 16]) assert.equal(midiNoteForState(state), null)
+  for (const state of [0, 2, 7, 8, 10, 11, 13, 14, 15, -1, 16]) assert.equal(midiNoteForState(state), null)
 })
 
 test('state changes send Note Off before Note On, including mapped partial releases', () => {
@@ -27,17 +28,62 @@ test('state changes send Note Off before Note On, including mapped partial relea
     [0x90, 71, 100], [0x80, 71, 0], [0x90, 65, 100]])
 })
 
-test('duplicate pitches and thumb-only messages do not retrigger', () => {
+test('duplicate states with unchanged effective pitches do not retrigger', () => {
   const { events, player } = setup()
-  for (const thumb of [false, true, true, false]) {
+  for (const thumb of [false, false, false]) {
     const message = { state: 3, thumb }
-    player.play(message.state)
+    player.play(message.state, message.thumb)
   }
   assert.deepEqual(events, [[0x90, 60, 100]])
 })
 
+test('thumb press and release transpose a sounding note immediately and update played names', () => {
+  const events = []
+  const played = []
+  const player = new MidiOutput(note => played.push(note))
+  player.setOutput({ send: data => events.push(data) })
+  player.play(3, false)
+  player.play(3, true)
+  player.play(3, true)
+  player.play(3, false)
+  assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0], [0x90, 72, 100], [0x80, 72, 0], [0x90, 60, 100]])
+  assert.deepEqual(played, ['C4', 'C5', 'C4'])
+})
+
+test('thumb-only states stay silent and a later mapped fingering starts in the upper octave', () => {
+  const { events, player } = setup()
+  player.play(0, true)
+  player.play(0, false)
+  player.play(0, true)
+  assert.deepEqual(events, [])
+  player.play(5, true)
+  assert.deepEqual(events, [[0x90, 74, 100]])
+  player.play(0, true)
+  assert.deepEqual(events, [[0x90, 74, 100], [0x80, 74, 0]])
+})
+
+test('all unmapped combinations remain silent with thumb held', () => {
+  for (const state of [0, 2, 7, 8, 10, 11, 13, 14, 15]) {
+    const { events, player } = setup()
+    assert.equal(midiNoteForState(state, true), null)
+    player.play(3, true)
+    player.play(state, true)
+    player.play(state, false)
+    assert.deepEqual(events, [[0x90, 72, 100], [0x80, 72, 0]])
+  }
+})
+
+test('safety stop and output disable release the transposed note', () => {
+  const { events, player } = setup()
+  player.play(3, true)
+  player.stop()
+  player.play(5, true)
+  player.setOutput(null)
+  assert.deepEqual(events, [[0x90, 72, 100], [0x80, 72, 0], [0x90, 74, 100], [0x80, 74, 0]])
+})
+
 test('every unmapped combination stops the previous note and remains silent', () => {
-  for (const state of [2, 4, 7, 8, 11, 13, 14, 15]) {
+  for (const state of [2, 7, 8, 10, 11, 13, 14, 15]) {
     const { events, player } = setup()
     player.play(3)
     player.play(state)

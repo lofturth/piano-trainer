@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
 import { fingerAt, regions, thumbRadius, validCalibration } from './calibration.js'
 import type { Point } from './calibration.js'
+import { touchLocation, TouchTracker } from './touchscreen.js'
+import type { Touchscreen } from './touchscreen.js'
 
 const fingers = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky']
 const storageKey = 'piano-trainer.calibration.v2'
@@ -14,12 +16,14 @@ function loadCalibration(): Point[] | null {
   } catch { return null }
 }
 
-export default function ControllerSurface({ state, status, press, release, reset }: {
+export default function ControllerSurface({ state, status, press, release, reset, onScreen, registerTouchReset }: {
   state: number
   status: string
   press: (pointer: number, finger: number, time: number) => void
   release: (pointer: number, time: number) => void
   reset: (time: number) => void
+  onScreen: (screen: Touchscreen) => void
+  registerTouchReset: (clear: () => void) => void
 }) {
   const [centers, setCenters] = useState(loadCalibration)
   const [draft, setDraft] = useState<Point[]>([])
@@ -27,16 +31,33 @@ export default function ControllerSurface({ state, status, press, release, reset
   const [size, setSize] = useState({ width: 1, height: 1 })
   const surface = useRef<HTMLDivElement>(null)
   const pending = useRef<{ pointer: number; point: Point } | null>(null)
+  const touches = useRef(new TouchTracker())
+  const publish = useCallback(() => {
+    const rect = surface.current?.getBoundingClientRect()
+    if (rect && rect.width > 0 && rect.height > 0) {
+      onScreen({ width: rect.width, height: rect.height, centers, touches: touches.current.snapshot() })
+    }
+  }, [centers, onScreen])
+  const clearTouches = useCallback(() => {
+    touches.current.clear()
+    pending.current = null
+    publish()
+  }, [publish])
+
+  useEffect(() => {
+    registerTouchReset(clearTouches)
+    return () => registerTouchReset(() => {})
+  }, [registerTouchReset, clearTouches])
 
   useEffect(() => {
     const element = surface.current!
     const observer = new ResizeObserver(() => {
       const { width, height } = element.getBoundingClientRect()
       setSize({ width, height })
-      pending.current = null
+      clearTouches()
       reset(performance.now())
     })
-    const cancel = () => { pending.current = null }
+    const cancel = () => { clearTouches() }
     observer.observe(element)
     document.addEventListener('visibilitychange', cancel)
     window.addEventListener('blur', cancel)
@@ -45,25 +66,31 @@ export default function ControllerSurface({ state, status, press, release, reset
       document.removeEventListener('visibilitychange', cancel)
       window.removeEventListener('blur', cancel)
     }
-  }, [reset])
+  }, [reset, clearTouches])
 
   const down = (event: PointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return
     event.preventDefault()
     const rect = event.currentTarget.getBoundingClientRect()
-    const point = {
-      x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
-      y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
-    }
+    const point = touchLocation(event.clientX, event.clientY, rect)
+    const finger = centers ? fingerAt(point, centers, rect.width, rect.height) : null
     event.currentTarget.setPointerCapture(event.pointerId)
+    touches.current.start(event.pointerId, point, finger)
+    publish()
     if (!centers) {
       if (!pending.current) pending.current = { pointer: event.pointerId, point }
       return
     }
-    press(event.pointerId, fingerAt(point, centers, rect.width, rect.height), event.timeStamp)
+    press(event.pointerId, finger!, event.timeStamp)
+  }
+
+  const move = (event: PointerEvent<HTMLDivElement>) => {
+    const point = touchLocation(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect())
+    if (touches.current.move(event.pointerId, point)) publish()
   }
 
   const end = (event: PointerEvent<HTMLDivElement>, commit = false) => {
+    if (touches.current.end(event.pointerId)) publish()
     release(event.pointerId, event.timeStamp)
     if (pending.current?.pointer !== event.pointerId) return
     const { point } = pending.current
@@ -84,6 +111,7 @@ export default function ControllerSurface({ state, status, press, release, reset
   }
 
   const calibrate = () => {
+    clearTouches()
     reset(performance.now())
     pending.current = null
     setCenters(null)
@@ -109,6 +137,7 @@ export default function ControllerSurface({ state, status, press, release, reset
     <div ref={surface} className="playing-surface" aria-label="Five-finger playing surface"
       onContextMenu={event => event.preventDefault()}
       onPointerDown={down} onPointerUp={event => end(event, true)}
+      onPointerMove={move}
       onPointerCancel={event => end(event)} onLostPointerCapture={event => end(event)}>
       <svg viewBox={`0 0 ${size.width} ${size.height}`} preserveAspectRatio="none" aria-hidden="true">
         <defs>

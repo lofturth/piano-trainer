@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { MidiOutput } from './midi-output.js'
 
 export default function MidiPanel({ register, onNoteOn }: {
-  register: (receive: (state: number) => void) => void
+  register: (receive: (state: number, thumb?: boolean) => void) => void
   onNoteOn: (note: string) => void
 }) {
   const [player] = useState(() => new MidiOutput(onNoteOn))
@@ -28,8 +28,8 @@ export default function MidiPanel({ register, onNoteOn }: {
   }, [detach])
 
   useEffect(() => {
-    register(state => {
-      try { if (!document.hidden) player.play(state) } catch (error) { fail(error) }
+    register((state, thumb = false) => {
+      try { if (!document.hidden) player.play(state, thumb) } catch (error) { fail(error) }
     })
     const stop = () => {
       try { player.stop() } catch (error) { fail(error) }
