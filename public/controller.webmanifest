@@ -1,0 +1,9 @@
+{
+  "name": "Piano Trainer Finger Controller",
+  "short_name": "Fingers",
+  "start_url": "/controller",
+  "scope": "/controller",
+  "display": "standalone",
+  "background_color": "#15122c",
+  "theme_color": "#15122c"
+}

@@ -17,6 +17,10 @@ function getGitCommit() {
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    hmr: false,
+    ws: false,
+  },
   plugins: [
     react(),
     ...(process.env.CLOUDFLARE_ENV ? [cloudflare()] : []),

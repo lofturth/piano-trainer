@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "relay": "node server/relay.js",
+    "dev:lan": "vite --host 0.0.0.0",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:staging": "tsc -b && CLOUDFLARE_ENV=staging DEPLOY_ENV=STAGING vite build",
@@ -16,7 +18,8 @@
   },
   "dependencies": {
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.60.0",
