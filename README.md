@@ -84,6 +84,60 @@ Wi-Fi loss, reconnection, and firewall/local-network permissions.
 
 ## Getting Started
 
+### MIDI output on the Mac
+
+The `/trainer` page has Trainer and Playing View buttons. Set up MIDI in Trainer,
+then switch to Playing View for a large last-played note, a chronological history
+of the last 20 notes (including repeats), and the current major-scale fingering
+reference. Filled 1 means pressed; outlined 0 means released, in Index/Middle/Ring/Pinky
+order. Switching views keeps MIDI controls mounted and does not stop playback.
+The compact laptop layout places the last note beside the live fingers, followed
+by a single-row 20-note history and seven-card Candidate 1 reference. Narrow
+windows wrap the history and reference instead of hiding content.
+Playing View also shows live Index/Middle/Ring/Pinky activity from raw bits 0–3
+and highlights the reference fingering matching the current combination. These
+are visual only: partial releases can change the live fingering/reference while
+the sounding and last-played note stay unchanged. Thumb does not affect these
+four indicators or the reference highlight.
+
+Playing View records only successfully submitted MIDI Note On messages, not raw
+finger changes; no output means no history entries. Note Off, unmapped presses,
+partial releases and thumb-only events do not add entries or erase the last note.
+History lasts for the current page session and is cleared by a browser refresh.
+
+Open `/trainer` using `http://localhost:5173` in a Web MIDI-capable browser
+(for example Chrome). Web MIDI requires a secure context; the plain LAN URL
+used by the phone is not suitable for enabling MIDI. Click Enable MIDI, grant
+access, then explicitly select an output. No SysEx permission is requested.
+
+For inter-app routing to Vital, enable a bus in Audio MIDI Setup → MIDI Studio →
+IAC Driver → Device is online. Select that bus as the trainer's output and as
+the MIDI input in Vital or its host. See [Apple's IAC setup guide](https://support.apple.com/guide/audio-midi-setup/transfer-midi-information-between-apps-ams1013/mac).
+
+The experimental Candidate 1 mapping uses fingering patterns in Index/Middle/Ring/Pinky
+order: `1100→C4`, `1010→D4`, `1001→E4`, `0011→F4`, `0101→G4`,
+`0110→A4`, `1000→B4` (MIDI 60, 62, 64, 65, 67, 69, 71). All other patterns
+have no mapped pitch. The raw protocol still uses Index as bit 0, so Index alone is raw
+`0001` but fingering `1000`; the raw binary displays are unchanged.
+Output uses channel 1 and velocity 100. Thumb stays visible but has no musical effect.
+MIDI attacks occur only when a pitch finger goes from up to down. A mapped press
+releases the sounding note before starting the new pitch; an unmapped press leaves
+the sounding note unchanged. Partial releases do not trigger or stop notes, even
+if the displayed mapped pitch changes. Releasing all four pitch fingers stops the
+sounding note. Duplicate states and thumb-only changes do nothing. Output selection
+does not replay an already-held fingering; a fresh pitch-finger press is required.
+Controller loss, MIDI disable/output switching, page hiding and navigation still
+release the tracked note. Hidden pages do not send Note On. Output
+loss requires selecting the port again; there is no automatic port selection.
+MIDI is handled directly per received event, not from batched React rendering.
+No internal sound is generated.
+
+Test permission denial, IAC/Vital routing, pitch changes, duplicate/thumb-only
+events, output hot-plugging, and cleanup on disconnect/hide/refresh manually.
+Note Off delivery is best-effort when a port disappears or a browser/process
+terminates abruptly; use Vital/host panic if necessary. Keep the trainer visible
+while playing; switching to another app alone does not disable MIDI.
+
 ### Install Dependencies
 
 ```bash

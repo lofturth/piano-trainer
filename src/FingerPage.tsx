@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ControllerSurface from './ControllerSurface.tsx'
+import { pitchForState } from './pitch-mapping.js'
+import MidiPanel from './MidiPanel.tsx'
+import PlayingView from './PlayingView.tsx'
+import { appendPlayedNote } from './note-history.js'
 import './FingerPage.css'
 
 const fingers = ['Index', 'Middle', 'Ring', 'Pinky']
@@ -8,9 +12,16 @@ export default function FingerPage({ controller }: { controller: boolean }) {
   const [state, setState] = useState(0)
   const [status, setStatus] = useState('Connecting to relay…')
   const [lastEvent, setLastEvent] = useState<{ seq: number; t: number } | null>(null)
+  const [playingView, setPlayingView] = useState(false)
+  const [history, setHistory] = useState<string[]>([])
+  const recordNote = useCallback((note: string) => {
+    setHistory(previous => appendPlayedNote(previous, note))
+  }, [])
   const pointers = useRef(new Map<number, number>())
   const current = useRef(0)
   const transmit = useRef<(state: number, time: number) => void>(() => {})
+  const midiReceive = useRef<(state: number) => void>(() => {})
+  const registerMidi = useCallback((receive: (state: number) => void) => { midiReceive.current = receive }, [])
 
   useEffect(() => {
     let socket: WebSocket | null = null
@@ -19,6 +30,7 @@ export default function FingerPage({ controller }: { controller: boolean }) {
     let sequence = 0
     let receivedAt = performance.now()
     const clear = () => {
+      midiReceive.current(0)
       pointers.current.clear()
       current.current = 0
       setState(0)
@@ -47,6 +59,7 @@ export default function FingerPage({ controller }: { controller: boolean }) {
           setStatus(message.controllerConnected ? 'Controller connected' : 'Relay connected · waiting for controller')
           if (!controller && !message.controllerConnected) clear()
         } else if (!controller && message.type === 'fingers') {
+          midiReceive.current(message.state)
           setState(message.state | (message.thumb ? 16 : 0))
           setLastEvent({ seq: message.seq, t: message.t })
         }
@@ -140,17 +153,26 @@ export default function FingerPage({ controller }: { controller: boolean }) {
 
   if (controller) return <ControllerSurface state={state} status={status} press={press} release={update} reset={reset} />
 
-  return <main className="finger-page">
+  return <main className={playingView ? 'finger-page playing-mode' : 'finger-page'}>
     <nav><a href="/">Starter</a> · <a href={controller ? '/trainer' : '/controller'}>{controller ? 'Trainer' : 'Controller'}</a></nav>
     <h1>{controller ? 'Phone controller' : 'Piano trainer'}</h1>
+    <div className="trainer-view-switch" role="group" aria-label="Trainer view">
+      <button type="button" aria-pressed={!playingView} onClick={() => setPlayingView(false)}>Trainer</button>
+      <button type="button" aria-pressed={playingView} onClick={() => setPlayingView(true)}>Playing View</button>
+    </div>
+    <div hidden={!playingView}><PlayingView history={history} fingerState={state & 15} /></div>
+    <div hidden={playingView}>
     <p role="status">{status}</p>
+    <output className="trainer-note" aria-label="Mapped note" aria-live="polite">{pitchForState(state & 15)}</output>
     <output className="finger-state" aria-label="Finger state">{(state & 15).toString(2).padStart(4, '0')}</output>
     <p>Bits: Pinky · Ring · Middle · Index (Index = bit 0)</p>
+    <p className={(state & 16) ? 'trainer-thumb held' : 'trainer-thumb'}>Thumb: {(state & 16) ? 'pressed' : 'released'}</p>
+    <MidiPanel register={registerMidi} onNoteOn={recordNote} />
     <div className="finger-zones">
       {fingers.map((finger, index) => <div key={finger} className={(state & (1 << index)) ? 'held' : ''}>{finger}</div>)}
     </div>
-    <p className={(state & 16) ? 'trainer-thumb held' : 'trainer-thumb'}>Thumb: {(state & 16) ? 'pressed' : 'released'}</p>
     <p>{lastEvent ? `Sequence ${lastEvent.seq} · phone time ${lastEvent.t.toFixed(1)} ms` : 'No finger event in this connection'}</p>
     <p>{controller ? 'Hold multiple zones. Lift all fingers after reconnecting.' : 'Open /controller on your phone using this Mac’s LAN IP.'}</p>
+    </div>
   </main>
 }

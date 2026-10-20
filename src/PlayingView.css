@@ -1,0 +1,42 @@
+.trainer-view-switch { display: flex; justify-content: center; gap: 8px; margin: 16px 0; }
+.trainer-view-switch button { padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; font: inherit; color: var(--text-h); background: var(--bg); cursor: pointer; }
+.trainer-view-switch button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-bg); }
+.finger-page.playing-mode { padding: 10px 16px; }
+.finger-page.playing-mode nav { font-size: 13px; }
+.finger-page.playing-mode h1 { font-size: 24px; margin: 6px 0; }
+.playing-mode .trainer-view-switch { margin: 6px 0; }
+.playing-mode .trainer-view-switch button { padding: 5px 12px; font-size: 14px; }
+.playing-view { display: grid; grid-template-columns: minmax(160px, 0.7fr) minmax(0, 1.8fr); align-items: center; gap: 12px 20px; padding: 6px 0; line-height: 1.35; }
+.playing-view h2 { margin: 0 0 4px; font-size: 17px; }
+.playing-view p { margin: 4px 0; font-size: 12px; }
+.playing-view .played-current { padding: 0; }
+.played-current output { display: block; font: 500 clamp(72px, 10vw, 112px)/1.05 var(--sans); letter-spacing: -0.04em; color: var(--text-h); }
+.playing-view .played-history { grid-column: 1 / -1; margin: 0; }
+.live-fingers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 8px auto; }
+.live-finger { display: grid; gap: 4px; padding: 12px 6px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text-h); }
+.live-finger strong { font-size: 17px; }
+.live-finger span { font-size: 12px; }
+.live-finger.pressed { background: #247d65; color: #fff; border-color: #247d65; }
+.played-history ol { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 4px; list-style: none; padding: 0; margin: 8px 0 0; }
+.played-history li { padding: 5px 2px; border-radius: 6px; background: var(--code-bg); color: var(--text-h); font: 14px var(--mono); }
+.played-history li:last-child { background: var(--accent-bg); }
+.fingering-reference { grid-column: 1 / -1; }
+.fingering-cards { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.fingering-card { display: grid; justify-items: center; padding: 8px 4px; border: 1px solid var(--border); border-radius: 8px; }
+.fingering-card.current { background: var(--accent-bg); outline: 2px solid var(--accent); outline-offset: 2px; }
+.fingering-card strong { display: block; margin-bottom: 6px; color: var(--text-h); font-size: 16px; }
+.fingering-bits { display: flex; gap: 3px; font: 13px var(--mono); }
+.fingering-bits span { display: grid; place-items: center; width: 18px; height: 24px; border: 1px solid var(--border); border-radius: 10px; }
+.fingering-bits .pressed { background: #247d65; color: #fff; border-color: #247d65; }
+.fingering-bits .released { background: var(--bg); color: var(--text); }
+@media (max-width: 760px) {
+  .playing-view { grid-template-columns: minmax(100px, 0.6fr) minmax(0, 1.8fr); gap: 10px; }
+  .live-finger strong { font-size: 14px; }
+  .fingering-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .played-history ol { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .playing-view { grid-template-columns: 1fr; }
+  .live-fingers { gap: 4px; }
+  .fingering-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
