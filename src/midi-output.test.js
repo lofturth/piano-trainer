@@ -10,6 +10,103 @@ function setup() {
   return { events, output, player }
 }
 
+test('chromatic Finger Roll sends immediate semitone transitions including releases and octave shifts', () => {
+  const { player, events } = setup()
+  player.setMapping('Finger Roll')
+  const states = [1, 5, 3, 2, 7, 15, 6, 14, 4, 12, 9, 8]
+  for (const state of states) player.play(state)
+  assert.deepEqual(events.filter(event => event[0] === 0x90).map(event => event[1]),
+    Array.from({ length: 12 }, (_, index) => 60 + index))
+  player.play(8, true)
+  assert.deepEqual(events.slice(-2), [[0x80, 71, 0], [0x90, 83, 100]])
+  player.setBaseOctave(7)
+  assert.equal(player.activeNote, 119)
+  player.play(10, true)
+  assert.equal(player.activeNote, null)
+  assert.deepEqual(events.at(-1), [0x80, 119, 0])
+})
+
+test('mapping selection immediately follows held fingers, octave and thumb, recording actual attacks', () => {
+  const events = []
+  const history = []
+  const player = new MidiOutput(note => history.push(note))
+  player.setOutput({ send: data => events.push(data) })
+  player.setBaseOctave(5)
+  player.play(3, true)
+  player.setMapping('Finger Roll')
+  player.setMapping('Finger Roll')
+  player.setMapping('Candidate 1')
+  assert.deepEqual(events, [[0x90, 84, 100], [0x80, 84, 0], [0x90, 86, 100], [0x80, 86, 0], [0x90, 84, 100]])
+  assert.deepEqual(history, ['C6', 'D6', 'C6'])
+  player.play(4, true)
+  player.setMapping('Finger Roll')
+  assert.equal(player.activeNote, 92)
+  assert.deepEqual(events.slice(-2), [[0x80, 91, 0], [0x90, 92, 100]])
+  player.play(7, true)
+  player.setMapping('Candidate 1')
+  assert.equal(player.activeNote, null)
+  player.setMapping('Finger Roll')
+  assert.equal(player.activeNote, 88)
+})
+
+test('mapping changes preserve silence and do not play without output or while hidden', () => {
+  const { player, events } = setup()
+  player.setMapping('Finger Roll')
+  assert.deepEqual(events, [])
+  player.play(3)
+  player.stop()
+  player.setMapping('Candidate 1', false)
+  assert.equal(player.activeNote, null)
+  player.setOutput(null)
+  player.setMapping('Finger Roll')
+  assert.deepEqual(events, [[0x90, 62, 100], [0x80, 62, 0]])
+  player.setOutput({ send: data => events.push(data) })
+  player.play(3)
+  assert.equal(events.length, 2)
+})
+
+test('base octave switches sounding pitches immediately and records actual note names', () => {
+  const events = []
+  const history = []
+  const player = new MidiOutput(note => history.push(note))
+  player.setOutput({ send: data => events.push(data) })
+  player.play(4)
+  player.setBaseOctave(5)
+  player.setBaseOctave(5)
+  player.play(4, true)
+  player.setBaseOctave(1)
+  assert.deepEqual(events, [[0x90, 67, 100], [0x80, 67, 0], [0x90, 79, 100],
+    [0x80, 79, 0], [0x90, 91, 100], [0x80, 91, 0], [0x90, 43, 100]])
+  assert.deepEqual(history, ['G4', 'G5', 'G6', 'G2'])
+})
+
+test('base octave respects bounds, silence, and safety stops without restarting held notes', () => {
+  const { events, player } = setup()
+  player.setBaseOctave(7)
+  player.play(0, true)
+  player.play(10, true)
+  assert.deepEqual(events, [])
+  player.play(1, true)
+  assert.equal(player.activeNote, 119)
+  player.setBaseOctave(8)
+  assert.equal(player.activeNote, 119)
+  player.stop()
+  player.setBaseOctave(2)
+  player.play(1, true)
+  assert.deepEqual(events, [[0x90, 119, 100], [0x80, 119, 0]])
+  player.play(3, true)
+  assert.equal(player.activeNote, 48)
+  for (let octave = 1; octave <= 7; octave++) {
+    for (const state of [3, 5, 9, 12, 4, 6, 1]) {
+      for (const thumb of [false, true]) {
+        const note = midiNoteForState(state, thumb, octave)
+        assert.ok(note >= 0 && note <= 127)
+      }
+    }
+  }
+  for (const octave of [0, 8, NaN, 1.5]) assert.equal(midiNoteForState(3, false, octave), null)
+})
+
 test('major-scale mapping produces MIDI 60, 62, 64, 65, 67, 69, 71', () => {
   for (const [state, note] of [[3, 60], [5, 62], [9, 64], [12, 65], [4, 67], [6, 69], [1, 71]]) {
     assert.equal(midiNoteForState(state), note)

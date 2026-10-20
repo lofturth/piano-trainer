@@ -1,6 +1,33 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { majorScaleMapping, pitchForState } from './pitch-mapping.js'
+import { fingeringMappings, majorScaleMapping, pitchForState } from './pitch-mapping.js'
+
+test('chromatic assignments minimize total neighboring-natural finger changes', () => {
+  const naturals = ['1000', '1100', '1110', '1111', '0111', '0011', '0001']
+  const neighbors = [[0, 1], [1, 2], [3, 4], [4, 5], [5, 6]]
+  const distance = (first, second) => [...first].filter((bit, index) => bit !== second[index]).length
+  const cost = patterns => patterns.reduce((sum, pattern, index) => sum + neighbors[index]
+    .reduce((subtotal, neighbor) => subtotal + distance(pattern, naturals[neighbor]), 0), 0)
+  const permutations = patterns => patterns.length ? patterns.flatMap(pattern =>
+    permutations(patterns.filter(other => other !== pattern)).map(rest => [pattern, ...rest])) : [[]]
+  const patterns = ['0100', '0110', '0010', '1010', '1001']
+  const selected = fingeringMappings['Finger Roll'].filter(({ note }) => note.includes('#'))
+    .map(({ state }) => [0, 1, 2, 3].map(bit => (state & (1 << bit)) ? '1' : '0').join(''))
+  assert.deepEqual(selected, ['1010', '0100', '0110', '0010', '1001'])
+  assert.equal(cost(selected), 15)
+  assert.equal(cost(selected), Math.min(...permutations(patterns).map(cost)))
+  for (const state of [0b1101, 0b1011, 0b1010]) assert.equal(pitchForState(state, false, 4, 'Finger Roll'), 'Silence')
+})
+
+test('Finger Roll follows anatomical order without changing raw bit order', () => {
+  const mapped = new Map([[1, 'C4'], [5, 'C#4'], [3, 'D4'], [2, 'D#4'], [7, 'E4'], [15, 'F4'],
+    [6, 'F#4'], [14, 'G4'], [4, 'G#4'], [12, 'A4'], [9, 'A#4'], [8, 'B4']])
+  for (let state = 0; state < 16; state++) {
+    const note = mapped.get(state) || 'Silence'
+    assert.equal(pitchForState(state, false, 4, 'Finger Roll'), note)
+    assert.equal(pitchForState(state, true, 6, 'Finger Roll'), note.replace('4', '7'))
+  }
+})
 
 test('Candidate 1 patterns in Index/Middle/Ring/Pinky order map from unchanged raw bits', () => {
   const expected = [

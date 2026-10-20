@@ -8,6 +8,8 @@
 .playing-mode .trainer-view-switch button { padding: 5px 12px; font-size: 14px; }
 .playing-view { display: grid; grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) minmax(0, 1.2fr); align-items: center; gap: 8px 16px; padding: 6px 0; line-height: 1.35; }
 .live-thumb { color: var(--text); }
+.base-octave { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 12px; white-space: nowrap; }
+.base-octave button { padding: 2px 7px; font: inherit; cursor: pointer; }
 .live-thumb.held { color: var(--text-h); font-weight: 700; background: rgba(255, 75, 137, 0.2); border-radius: 6px; }
 .touch-monitor { display: block; width: 100%; max-width: 100%; height: auto; max-height: 217px; margin: 4px auto; }
 .touch-marker { stroke: #15122c; stroke-width: 3; fill: #fff; }
@@ -36,6 +38,16 @@
 .fingering-bits span { display: grid; place-items: center; width: 18px; height: 24px; border: 1px solid var(--border); border-radius: 10px; }
 .fingering-bits .pressed { background: #247d65; color: #fff; border-color: #247d65; }
 .fingering-bits .released { background: var(--bg); color: var(--text); }
+.fingering-cards.piano-reference { grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 5px 0; }
+.piano-reference .fingering-card { margin: 0 3px; padding: 5px 2px; min-width: 0; }
+.piano-reference .chromatic { background: #292538; color: #fff; }
+.piano-reference .chromatic strong { color: #fff; }
+.piano-reference .chromatic.current { outline-color: #a891ff; }
+.piano-reference .fingering-bits { gap: 2px; font-size: clamp(10px, 1.6vw, 13px); }
+.piano-reference .fingering-bits span { width: clamp(10px, 1.7vw, 18px); height: 20px; }
+.unassigned-fingerings { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 5px; margin-top: 8px; font-size: 11px; color: var(--text); }
+.unassigned-fingerings code { padding: 2px 5px; border: 1px dashed var(--border); border-radius: 4px; }
+.unassigned-fingerings .current { outline: 2px solid var(--accent); }
 @media (max-width: 760px) {
   .playing-view { grid-template-columns: minmax(100px, 0.6fr) minmax(0, 1.8fr); gap: 10px; }
   .screen-monitor { grid-column: 1 / -1; display: flex; justify-content: center; align-items: center; gap: 12px; }

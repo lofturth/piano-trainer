@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ControllerSurface from './ControllerSurface.tsx'
 import { pitchForState } from './pitch-mapping.js'
+import type { MappingName } from './pitch-mapping.js'
 import MidiPanel from './MidiPanel.tsx'
 import PlayingView from './PlayingView.tsx'
 import { appendPlayedNote } from './note-history.js'
@@ -16,6 +17,8 @@ export default function FingerPage({ controller }: { controller: boolean }) {
   const [lastEvent, setLastEvent] = useState<{ seq: number; t: number } | null>(null)
   const [playingView, setPlayingView] = useState(false)
   const [history, setHistory] = useState<string[]>([])
+  const [baseOctave, setBaseOctave] = useState(4)
+  const [mapping, setMapping] = useState<MappingName>('Finger Roll')
   const [screen, setScreen] = useState<Touchscreen | null>(null)
   const screenRef = useRef<Touchscreen | null>(null)
   const screenTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -195,14 +198,15 @@ export default function FingerPage({ controller }: { controller: boolean }) {
       <button type="button" aria-pressed={!playingView} onClick={() => setPlayingView(false)}>Trainer</button>
       <button type="button" aria-pressed={playingView} onClick={() => setPlayingView(true)}>Playing View</button>
     </div>
-    <div hidden={!playingView}><PlayingView history={history} fingerState={state & 15} thumb={Boolean(state & 16)} screen={screen} /></div>
+    <div hidden={!playingView}><PlayingView history={history} fingerState={state & 15} thumb={Boolean(state & 16)} screen={screen}
+      baseOctave={baseOctave} onBaseOctave={setBaseOctave} mapping={mapping} onMapping={setMapping} /></div>
     <div hidden={playingView}>
     <p role="status">{status}</p>
-    <output className="trainer-note" aria-label="Mapped note" aria-live="polite">{pitchForState(state & 15, Boolean(state & 16))}</output>
+    <output className="trainer-note" aria-label="Mapped note" aria-live="polite">{pitchForState(state & 15, Boolean(state & 16), baseOctave, mapping)}</output>
     <output className="finger-state" aria-label="Finger state">{(state & 15).toString(2).padStart(4, '0')}</output>
     <p>Bits: Pinky · Ring · Middle · Index (Index = bit 0)</p>
     <p className={(state & 16) ? 'trainer-thumb held' : 'trainer-thumb'}>Thumb: {(state & 16) ? 'pressed' : 'released'}</p>
-    <MidiPanel register={registerMidi} onNoteOn={recordNote} />
+    <MidiPanel register={registerMidi} onNoteOn={recordNote} baseOctave={baseOctave} mapping={mapping} />
     <div className="finger-zones">
       {fingers.map((finger, index) => <div key={finger} className={(state & (1 << index)) ? 'held' : ''}>{finger}</div>)}
     </div>

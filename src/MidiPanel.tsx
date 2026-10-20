@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MidiOutput } from './midi-output.js'
+import type { MappingName } from './pitch-mapping.js'
 
-export default function MidiPanel({ register, onNoteOn }: {
+export default function MidiPanel({ register, onNoteOn, baseOctave, mapping }: {
+  mapping: MappingName
+  baseOctave: number
   register: (receive: (state: number, thumb?: boolean) => void) => void
   onNoteOn: (note: string) => void
 }) {
@@ -26,6 +29,14 @@ export default function MidiPanel({ register, onNoteOn }: {
     setOutputStatus(`MIDI error: ${error instanceof Error ? error.message : String(error)}`)
     if (error instanceof DOMException && error.name === 'SecurityError') setPermission('Denied or revoked')
   }, [detach])
+
+  useEffect(() => {
+    try { player.setBaseOctave(baseOctave) } catch (error) { fail(error) }
+  }, [baseOctave, player, fail])
+
+  useEffect(() => {
+    try { player.setMapping(mapping, !document.hidden) } catch (error) { fail(error) }
+  }, [mapping, player, fail])
 
   useEffect(() => {
     register((state, thumb = false) => {
