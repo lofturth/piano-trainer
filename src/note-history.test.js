@@ -28,7 +28,7 @@ test('history records only sent Note On events and retains the last note after r
   player.stop()
   player.setOutput(null)
   player.play(3)
-  assert.deepEqual(history, ['D4', 'D4'])
+  assert.deepEqual(history, ['D4', 'B4', 'D4', 'D4'])
   assert.equal(history.length, events.filter(data => data[0] === 0x90).length)
   assert.equal(history.at(-1), 'D4')
   assert.equal(player.activeNote, null)
@@ -42,7 +42,7 @@ test('failed MIDI sends do not add a played note', () => {
   assert.deepEqual(history, [])
 })
 
-test('live fingering can change on partial release without changing the played note or history', () => {
+test('mapped partial releases update the played note and history to match live fingering', () => {
   let history = []
   const player = new MidiOutput(note => { history = appendPlayedNote(history, note) })
   const events = []
@@ -52,9 +52,20 @@ test('live fingering can change on partial release without changing the played n
   player.play(liveState)
   assert.deepEqual([0, 1, 2, 3].map(bit => Boolean(liveState & (1 << bit))), [true, false, false, false])
   assert.equal(majorScaleMapping.find(({ state }) => state === liveState)?.note, 'B4')
-  assert.equal(player.activeNote, 60)
-  assert.deepEqual(history, ['C4'])
-  assert.deepEqual(events, [[0x90, 60, 100]])
+  assert.equal(player.activeNote, 71)
+  assert.deepEqual(history, ['C4', 'B4'])
+  assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0], [0x90, 71, 100]])
   player.play(0)
-  assert.deepEqual(history, ['C4'])
+  assert.deepEqual(history, ['C4', 'B4'])
+})
+
+test('unmapped partial releases silence MIDI without erasing the last played note', () => {
+  let history = []
+  const player = new MidiOutput(note => { history = appendPlayedNote(history, note) })
+  const events = []
+  player.setOutput({ send: data => events.push(data) })
+  for (const state of [12, 4, 0]) player.play(state)
+  assert.equal(player.activeNote, null)
+  assert.deepEqual(events, [[0x90, 65, 100], [0x80, 65, 0]])
+  assert.deepEqual(history, ['F4'])
 })

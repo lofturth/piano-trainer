@@ -17,13 +17,14 @@ test('major-scale mapping produces MIDI 60, 62, 64, 65, 67, 69, 71', () => {
   for (const state of [0, 2, 4, 7, 8, 11, 13, 14, 15, -1, 16]) assert.equal(midiNoteForState(state), null)
 })
 
-test('new presses send Note Off before Note On; partial releases leave the sounding note unchanged', () => {
+test('state changes send Note Off before Note On, including mapped partial releases', () => {
   const { events, player } = setup()
   player.play(3)
   player.play(5)
   player.play(1)
   player.play(12)
-  assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0], [0x90, 62, 100], [0x80, 62, 0], [0x90, 65, 100]])
+  assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0], [0x90, 62, 100], [0x80, 62, 0],
+    [0x90, 71, 100], [0x80, 71, 0], [0x90, 65, 100]])
 })
 
 test('duplicate pitches and thumb-only messages do not retrigger', () => {
@@ -35,14 +36,14 @@ test('duplicate pitches and thumb-only messages do not retrigger', () => {
   assert.deepEqual(events, [[0x90, 60, 100]])
 })
 
-test('unmapped combinations neither start nor stop notes; all released fingers stop the held note', () => {
+test('every unmapped combination stops the previous note and remains silent', () => {
   for (const state of [2, 4, 7, 8, 11, 13, 14, 15]) {
     const { events, player } = setup()
     player.play(3)
     player.play(state)
     player.play(state)
-    assert.deepEqual(events, [[0x90, 60, 100]])
-    assert.equal(player.activeNote, 60)
+    assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0]])
+    assert.equal(player.activeNote, null)
     player.play(0)
     assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0]])
     assert.equal(player.activeNote, null)
@@ -79,19 +80,19 @@ test('lifecycle stop is idempotent; controller disconnection silences the note',
   assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0], [0x90, 64, 100], [0x80, 64, 0]])
 })
 
-test('several partial releases preserve the original note until all fingers are up', () => {
+test('partial releases follow mapped pitches and silence unmapped states', () => {
   const { events, player } = setup()
   for (const state of [3, 7, 6, 2, 2]) player.play(state)
-  assert.deepEqual(events, [[0x90, 60, 100]])
+  assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0], [0x90, 69, 100], [0x80, 69, 0]])
   player.play(0)
   player.play(0)
-  assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0]])
+  assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0], [0x90, 69, 100], [0x80, 69, 0]])
 })
 
-test('a new press can retrigger the sounding pitch after a partial release', () => {
+test('releasing and pressing back follows each mapped pitch without duplicate retriggers', () => {
   const { events, player } = setup()
-  for (const state of [3, 1, 3]) player.play(state)
-  assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0], [0x90, 60, 100]])
+  for (const state of [3, 1, 1, 3, 3]) player.play(state)
+  assert.deepEqual(events, [[0x90, 60, 100], [0x80, 60, 0], [0x90, 71, 100], [0x80, 71, 0], [0x90, 60, 100]])
 })
 
 test('a transition with both a release and a new press triggers the new mapped pitch', () => {

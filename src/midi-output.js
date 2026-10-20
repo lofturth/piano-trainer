@@ -27,15 +27,14 @@ export class MidiOutput {
   }
 
   play(state) {
-    const pressed = state & ~this.previousState
+    const changed = state !== this.previousState
     this.previousState = state
-    if (state === 0) {
+    const note = midiNoteForState(state)
+    if (note === null) {
       this.stop()
       return
     }
-    if (!pressed || !this.output) return
-    const note = midiNoteForState(state)
-    if (note === null) return
+    if (!changed || !this.output || note === this.activeNote) return
     this.stop()
     this.activeNote = note
     this.output.send([0x90, note, 100])

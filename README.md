@@ -96,13 +96,14 @@ by a single-row 20-note history and seven-card Candidate 1 reference. Narrow
 windows wrap the history and reference instead of hiding content.
 Playing View also shows live Index/Middle/Ring/Pinky activity from raw bits 0–3
 and highlights the reference fingering matching the current combination. These
-are visual only: partial releases can change the live fingering/reference while
-the sounding and last-played note stay unchanged. Thumb does not affect these
+are visual only: MIDI follows mapped state changes independently, including
+partial releases. Unmapped states silence MIDI but retain the last-played note. Thumb does not affect these
 four indicators or the reference highlight.
 
 Playing View records only successfully submitted MIDI Note On messages, not raw
-finger changes; no output means no history entries. Note Off, unmapped presses,
-partial releases and thumb-only events do not add entries or erase the last note.
+finger changes; no output means no history entries. Releases into mapped pitches
+can generate Note On and add history. Note Off, unmapped states, and thumb-only
+events do not add entries or erase the last note.
 History lasts for the current page session and is cleared by a browser refresh.
 
 Open `/trainer` using `http://localhost:5173` in a Web MIDI-capable browser
@@ -120,12 +121,12 @@ order: `1100→C4`, `1010→D4`, `1001→E4`, `0011→F4`, `0101→G4`,
 have no mapped pitch. The raw protocol still uses Index as bit 0, so Index alone is raw
 `0001` but fingering `1000`; the raw binary displays are unchanged.
 Output uses channel 1 and velocity 100. Thumb stays visible but has no musical effect.
-MIDI attacks occur only when a pitch finger goes from up to down. A mapped press
-releases the sounding note before starting the new pitch; an unmapped press leaves
-the sounding note unchanged. Partial releases do not trigger or stop notes, even
-if the displayed mapped pitch changes. Releasing all four pitch fingers stops the
-sounding note. Duplicate states and thumb-only changes do nothing. Output selection
-does not replay an already-held fingering; a fresh pitch-finger press is required.
+MIDI follows the current four-finger state. A change to a different mapped pitch
+releases the sounding note before starting the new one, whether fingers were
+pressed, released, or both. Unmapped states and all four fingers up stop the
+sounding note. Same-pitch states, duplicates and thumb-only changes do not retrigger.
+Output selection does not replay an already-held fingering; a new pitch-state
+change is required.
 Controller loss, MIDI disable/output switching, page hiding and navigation still
 release the tracked note. Hidden pages do not send Note On. Output
 loss requires selecting the port again; there is no automatic port selection.
