@@ -9,6 +9,8 @@ test('notation preserves diatonic spelling and octave for engraved vertical posi
   assert.deepEqual(notationPitch('Bb5'), { key: 'bb/5', accidental: 'b', label: 'B♭5' })
   assert.equal(notationPitch('G3').key, 'g/3')
   assert.equal(notationPitch('C6').key, 'c/6')
+  assert.equal(notationPitch('C1').key, 'c/1')
+  assert.equal(notationPitch('B7').key, 'b/7')
   for (const note of demoMelody) assert.ok(notationPitch(note).key)
 })
 

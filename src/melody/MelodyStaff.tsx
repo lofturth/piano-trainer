@@ -23,6 +23,9 @@ export default function MelodyStaff({ notes, start, position, row }: {
       const context = renderer.getContext()
       const stave = new Stave(10, 65, 1060).addClef('treble')
       stave.setContext(context).draw()
+      const placements: { group: SVGElement; x: number; label: string }[] = []
+      let top = stave.getYForLine(0) - 20
+      let bottom = stave.getYForLine(4) + 20
       notes.forEach((pitch, slot) => {
         if (!pitch) return
         const index = start + slot
@@ -40,25 +43,35 @@ export default function MelodyStaff({ notes, start, position, row }: {
         group.dataset.noteIndex = String(index)
         group.dataset.state = index < currentPosition.current ? 'completed' : index === currentPosition.current ? 'current' : 'upcoming'
         const x = note.getAbsoluteX() + 5
-        const highlight = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
-        highlight.setAttribute('class', 'note-highlight')
-        highlight.setAttribute('x', String(x - 34))
-        highlight.setAttribute('y', '12')
-        highlight.setAttribute('width', '70')
-        highlight.setAttribute('height', '203')
-        highlight.setAttribute('rx', '7')
-        group.append(highlight)
         note.draw()
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-        text.setAttribute('x', String(x))
-        text.setAttribute('y', '202')
-        text.setAttribute('class', 'melody-note-label')
-        text.textContent = label
-        group.append(text)
+        const stem = note.getStemExtents()
+        top = Math.min(top, note.getYs()[0] - 22, stem.topY - 8, stem.baseY - 8)
+        bottom = Math.max(bottom, note.getYs()[0] + 22, stem.topY + 8, stem.baseY + 8)
+        placements.push({ group, x, label })
         context.closeGroup()
       })
       const svg = element.querySelector('svg')!
-      svg.setAttribute('viewBox', '0 0 1080 230')
+      top = Math.floor(top) - 8
+      const labelY = Math.ceil(bottom) + 20
+      const height = labelY - top + 12
+      placements.forEach(({ group, x, label }) => {
+        const highlight = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+        highlight.setAttribute('class', 'note-highlight')
+        highlight.setAttribute('x', String(x - 34))
+        highlight.setAttribute('y', String(top + 4))
+        highlight.setAttribute('width', '70')
+        highlight.setAttribute('height', String(height - 8))
+        highlight.setAttribute('rx', '7')
+        group.prepend(highlight)
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+        text.setAttribute('x', String(x))
+        text.setAttribute('y', String(labelY))
+        text.setAttribute('class', 'melody-note-label')
+        text.textContent = label
+        group.append(text)
+      })
+      renderer.resize(1080, height)
+      svg.setAttribute('viewBox', `0 ${top} 1080 ${height}`)
       svg.setAttribute('aria-hidden', 'true')
     }
     void draw().catch(reason => {

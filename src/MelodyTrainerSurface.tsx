@@ -10,7 +10,8 @@ export default function MelodyTrainerSurface({ subscribeNoteOn, screen, fingerSt
   screen: Touchscreen | null; fingerState: number; thumb: boolean; baseOctave: number; mapping: MappingName
 }) {
   return <section className="melody-surface" aria-label="Melody Trainer surface">
-    <MelodyTrainerPanel subscribeNoteOn={subscribeNoteOn} />
+    <MelodyTrainerPanel subscribeNoteOn={subscribeNoteOn} baseOctave={baseOctave}
+      fingerState={fingerState} thumb={thumb} mapping={mapping} />
     <div className="melody-support-panels">
       <TouchMonitor screen={screen} fingerState={fingerState} thumb={thumb} />
       <FingeringReferencePanel mapping={mapping} fingerState={fingerState} thumb={thumb} baseOctave={baseOctave} />

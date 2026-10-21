@@ -1,31 +1,75 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useState } from 'react'
 import Panel from './Panel.tsx'
 import { panelDefinitions } from './panel-definitions.ts'
-import { demoMelody } from '../melody/demo-melody.js'
-import { advanceProgression, initialProgression, rowContents } from '../melody/progression.js'
+import { rowContents } from '../melody/progression.js'
 import { notationPitch } from '../melody/notation.js'
 import MelodyStaff from '../melody/MelodyStaff.tsx'
 import '../melody/MelodyTrainer.css'
-import { advanceForNote } from '../melody/matching.js'
+import { initialPractice, newPracticeSequence, playPracticeNote, practiceNotes, resetPractice, simulatePracticeNote, togglePracticeNote } from '../melody/practice.js'
 import type { SubscribeNoteOn } from '../note-events.js'
+import type { MappingName } from '../pitch-mapping.js'
+import { midiNoteForPitch, midiNoteForState } from '../midi-output.js'
+import { createPracticeHold } from '../melody/hold.js'
 
-export default function MelodyTrainerPanel({ subscribeNoteOn }: { subscribeNoteOn?: SubscribeNoteOn } = {}) {
-  const [progress, setProgress] = useState(initialProgression)
-  useEffect(() => subscribeNoteOn?.(midi => {
-    setProgress(previous => advanceForNote(previous, midi))
-  }), [subscribeNoteOn])
+export default function MelodyTrainerPanel({ subscribeNoteOn, baseOctave = 4, fingerState = 0, thumb = false, mapping = 'Finger Roll' }: {
+  subscribeNoteOn?: SubscribeNoteOn; baseOctave?: number; fingerState?: number; thumb?: boolean; mapping?: MappingName
+} = {}) {
+  const [practice, setPractice] = useState(() => initialPractice())
+  const [hold] = useState(() => createPracticeHold())
+  const [holdDuration, setHoldDuration] = useState(500)
+  const [holdProgress, setHoldProgress] = useState(0)
+  const { progress, sequence, selected } = practice
+  const melody = useMemo(() => sequence.map(note => `${note}${baseOctave}`), [sequence, baseOctave])
+  useLayoutEffect(() => {
+    const midi = subscribeNoteOn ? midiNoteForState(fingerState, thumb, baseOctave, mapping) : null
+    hold.update(`${fingerState}:${thumb}:${baseOctave}:${mapping}`, midi,
+      midiNoteForPitch(melody[progress.position]), note => {
+        setPractice(previous => playPracticeNote(previous, note, baseOctave))
+      }, holdDuration)
+    setHoldProgress(0)
+    let frame: number
+    const drawProgress = () => {
+      const value = hold.progress()
+      if (value === null) return
+      setHoldProgress(value)
+      if (value < 1) frame = requestAnimationFrame(drawProgress)
+    }
+    frame = requestAnimationFrame(drawProgress)
+    return () => {
+      hold.cancel()
+      cancelAnimationFrame(frame)
+    }
+  }, [hold, subscribeNoteOn, fingerState, thumb, baseOctave, mapping, melody, progress, holdDuration])
   const [firstStart, secondStart] = progress.rowStarts
-  const firstRow = useMemo(() => rowContents(demoMelody, firstStart), [firstStart])
-  const secondRow = useMemo(() => rowContents(demoMelody, secondStart), [secondStart])
+  const firstRow = useMemo(() => rowContents(melody, firstStart), [melody, firstStart])
+  const secondRow = useMemo(() => rowContents(melody, secondStart), [melody, secondStart])
   const rows = [firstRow, secondRow]
-  const complete = progress.position === demoMelody.length
+  const complete = progress.position === melody.length
   return <Panel definition={panelDefinitions.melody} className="melody-trainer-panel">
     <p>Play the highlighted pitch · quarter notes show pitch only; no rhythm or timing evaluation.</p>
+    <div className="practice-note-selector" role="group" aria-label="Practice notes">
+      <span>Practice notes</span>
+      {practiceNotes.map(note => <button key={note} type="button" aria-pressed={selected.includes(note)}
+        disabled={selected.length === 1 && selected[0] === note}
+        onClick={() => { hold.cancel(); setPractice(previous => togglePracticeNote(previous, note)) }}>
+        {note.replace('#', '♯')}
+      </button>)}
+    </div>
     <div className="melody-actions">
-      <button type="button" disabled={complete} onClick={() => setProgress(previous => advanceProgression(previous, demoMelody.length))}>Play next note (simulation)</button>
-      <button type="button" onClick={() => setProgress(initialProgression())}>Reset</button>
-      <p role="status" aria-live="polite">{complete ? `Melody complete · ${demoMelody.length} notes completed` :
-        `Note ${progress.position + 1} of ${demoMelody.length} · ${notationPitch(demoMelody[progress.position]).label} · Row ${Math.floor(progress.position / 10) % 2 + 1}`}</p>
+      <button type="button" onClick={() => { hold.cancel(); setPractice(previous => newPracticeSequence(previous)) }}>New Sequence</button>
+      <button type="button" disabled={complete} onClick={() => { hold.cancel(); setPractice(simulatePracticeNote) }}>Play next note (simulation)</button>
+      <button type="button" onClick={() => { hold.cancel(); setPractice(resetPractice) }}>Reset</button>
+      <p role="status" aria-live="polite">{complete ? `Melody complete · ${melody.length} notes completed` :
+        `Note ${progress.position + 1} of ${melody.length} · ${notationPitch(melody[progress.position]).label} · Row ${Math.floor(progress.position / 10) % 2 + 1}`}</p>
+    </div>
+    <div className="melody-hold-controls">
+      <progress aria-label="Current note hold progress" max={1} value={holdProgress} />
+      <label>Hold <input type="range" min={100} max={1000} step={50} value={holdDuration}
+        onChange={event => {
+          hold.cancel()
+          setHoldProgress(0)
+          setHoldDuration(Number(event.target.value))
+        }} /> <output>{holdDuration} ms</output></label>
     </div>
     {rows.map((notes, row) => <MelodyStaff key={row} row={row + 1} notes={notes}
       start={progress.rowStarts[row]} position={progress.position} />)}
