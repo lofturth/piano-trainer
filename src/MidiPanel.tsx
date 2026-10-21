@@ -8,7 +8,7 @@ export default function MidiPanel({ register, onNoteOn, baseOctave, mapping }: {
   mapping: MappingName
   baseOctave: number
   register: (receive: (state: number, thumb?: boolean) => void) => void
-  onNoteOn: (note: string) => void
+  onNoteOn: (note: string, midi: number) => void
 }) {
   const [player] = useState(() => new MidiOutput(onNoteOn))
   const [enabled, setEnabled] = useState(false)

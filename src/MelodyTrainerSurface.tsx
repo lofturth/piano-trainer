@@ -1,9 +1,19 @@
 import MelodyTrainerPanel from './panels/MelodyTrainerPanel.tsx'
+import type { SubscribeNoteOn } from './note-events.js'
+import type { MappingName } from './pitch-mapping.js'
+import type { Touchscreen } from './touchscreen.js'
+import TouchMonitor from './TouchMonitor.tsx'
+import FingeringReferencePanel from './panels/FingeringReferencePanel.tsx'
 
-export default function MelodyTrainerSurface() {
-  return <main className="melody-surface">
-    <nav><a href="/">Starter</a> · <a href="/trainer">Trainer / Playing View</a> · <a href="/controller">Controller</a></nav>
-    <h1>Melody Trainer</h1>
-    <MelodyTrainerPanel />
-  </main>
+export default function MelodyTrainerSurface({ subscribeNoteOn, screen, fingerState, thumb, baseOctave, mapping }: {
+  subscribeNoteOn?: SubscribeNoteOn
+  screen: Touchscreen | null; fingerState: number; thumb: boolean; baseOctave: number; mapping: MappingName
+}) {
+  return <section className="melody-surface" aria-label="Melody Trainer surface">
+    <MelodyTrainerPanel subscribeNoteOn={subscribeNoteOn} />
+    <div className="melody-support-panels">
+      <TouchMonitor screen={screen} fingerState={fingerState} thumb={thumb} />
+      <FingeringReferencePanel mapping={mapping} fingerState={fingerState} thumb={thumb} baseOctave={baseOctave} />
+    </div>
+  </section>
 }

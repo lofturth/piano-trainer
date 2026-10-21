@@ -9,12 +9,17 @@ import type { Touchscreen } from './touchscreen.js'
 import './FingerPage.css'
 import ConnectionPanel from './panels/ConnectionPanel.tsx'
 import ControllerStatePanel from './panels/ControllerStatePanel.tsx'
+import MelodyTrainerSurface from './MelodyTrainerSurface.tsx'
+import { createNoteEvents } from './note-events.js'
 
 export default function FingerPage({ controller }: { controller: boolean }) {
   const [state, setState] = useState(0)
   const [status, setStatus] = useState('Connecting to relay…')
   const [lastEvent, setLastEvent] = useState<{ seq: number; t: number } | null>(null)
-  const [playingView, setPlayingView] = useState(false)
+  const [surface, setSurface] = useState<'trainer' | 'playing' | 'melody'>(() =>
+    location.pathname === '/melody-trainer' ? 'melody' : 'trainer')
+  const [melodyMounted, setMelodyMounted] = useState(() => location.pathname === '/melody-trainer')
+  const [noteEvents] = useState(createNoteEvents)
   const [history, setHistory] = useState<string[]>([])
   const [baseOctave, setBaseOctave] = useState(4)
   const [mapping, setMapping] = useState<MappingName>('Finger Roll')
@@ -31,14 +36,26 @@ export default function FingerPage({ controller }: { controller: boolean }) {
       sendScreen.current()
     }, 34)
   }, [])
-  const recordNote = useCallback((note: string) => {
+  const recordNote = useCallback((note: string, midi: number) => {
     setHistory(previous => appendPlayedNote(previous, note))
-  }, [])
+    noteEvents.emit(midi)
+  }, [noteEvents])
   const pointers = useRef(new Map<number, number>())
   const current = useRef(0)
   const transmit = useRef<(state: number, time: number) => void>(() => {})
   const midiReceive = useRef<(state: number, thumb?: boolean) => void>(() => {})
   const registerMidi = useCallback((receive: (state: number, thumb?: boolean) => void) => { midiReceive.current = receive }, [])
+
+  useEffect(() => {
+    if (!controller && location.pathname === '/melody-trainer') {
+      window.history.replaceState(null, '', '/trainer')
+    }
+  }, [controller])
+
+  const selectSurface = (next: typeof surface) => {
+    setSurface(next)
+    if (next === 'melody') setMelodyMounted(true)
+  }
 
   useEffect(() => {
     let socket: WebSocket | null = null
@@ -190,21 +207,26 @@ export default function FingerPage({ controller }: { controller: boolean }) {
   if (controller) return <ControllerSurface state={state} status={status} press={press} release={update} reset={reset}
     onScreen={onScreen} registerTouchReset={registerTouchReset} />
 
-  return <main className={playingView ? 'finger-page playing-mode' : 'finger-page'}>
-    <nav><a href="/">Starter</a> · <a href={controller ? '/trainer' : '/controller'}>{controller ? 'Trainer' : 'Controller'}</a> · <a href="/melody-trainer">Melody Trainer</a></nav>
+  return <main className={surface === 'trainer' ? 'finger-page' : 'finger-page playing-mode'}>
+    <nav><a href="/">Starter</a> · <a href={controller ? '/trainer' : '/controller'}>{controller ? 'Trainer' : 'Controller'}</a></nav>
     <h1>{controller ? 'Phone controller' : 'Piano trainer'}</h1>
     <div className="trainer-view-switch" role="group" aria-label="Trainer view">
-      <button type="button" aria-pressed={!playingView} onClick={() => setPlayingView(false)}>Trainer</button>
-      <button type="button" aria-pressed={playingView} onClick={() => setPlayingView(true)}>Playing View</button>
+      <button type="button" aria-pressed={surface === 'trainer'} onClick={() => selectSurface('trainer')}>Trainer</button>
+      <button type="button" aria-pressed={surface === 'playing'} onClick={() => selectSurface('playing')}>Playing View</button>
+      <button type="button" aria-pressed={surface === 'melody'} onClick={() => selectSurface('melody')}>Melody Trainer</button>
     </div>
-    <div hidden={!playingView}><PlayingView history={history} fingerState={state & 15} thumb={Boolean(state & 16)} screen={screen}
+    <div hidden={surface !== 'playing'}><PlayingView history={history} fingerState={state & 15} thumb={Boolean(state & 16)} screen={screen}
       baseOctave={baseOctave} onBaseOctave={setBaseOctave} mapping={mapping} onMapping={setMapping} /></div>
-    <div hidden={playingView}>
+    <div hidden={surface !== 'trainer'}>
       <div className="trainer-panels">
         <ConnectionPanel status={status} lastEvent={lastEvent} />
         <ControllerStatePanel fingerState={state & 15} thumb={Boolean(state & 16)} baseOctave={baseOctave} mapping={mapping} />
         <MidiPanel register={registerMidi} onNoteOn={recordNote} baseOctave={baseOctave} mapping={mapping} />
       </div>
+    </div>
+    <div hidden={surface !== 'melody'}>
+      {melodyMounted && <MelodyTrainerSurface subscribeNoteOn={surface === 'melody' ? noteEvents.subscribe : undefined}
+        screen={screen} fingerState={state & 15} thumb={Boolean(state & 16)} baseOctave={baseOctave} mapping={mapping} />}
     </div>
   </main>
 }

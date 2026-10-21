@@ -7,6 +7,7 @@ import { createServer } from 'vite'
 let server
 let registry
 let PlayingView
+let MelodyTrainerSurface
 const settings = { mapping: 'Finger Roll', baseOctave: 4, onMapping() {}, onBaseOctave() {} }
 const screen = { width: 390, height: 750,
   centers: [{ x: 0.15, y: 0.8 }, { x: 0.2, y: 0.4 }, { x: 0.4, y: 0.3 }, { x: 0.6, y: 0.35 }, { x: 0.8, y: 0.45 }],
@@ -29,6 +30,7 @@ before(async () => {
     server: { middlewareMode: true, hmr: false, ws: false, watch: null } })
   registry = (await server.ssrLoadModule('/src/panels/panel-registry.ts')).panelRegistry
   PlayingView = (await server.ssrLoadModule('/src/PlayingView.tsx')).default
+  MelodyTrainerSurface = (await server.ssrLoadModule('/src/MelodyTrainerSurface.tsx')).default
 })
 after(async () => { await server?.close() })
 
@@ -77,7 +79,7 @@ test('touchscreen panels retain actual geometry and allow multiple instances wit
   assert.ok(html.includes('rotate(90)'))
 })
 
-test('P10 renders a standalone visual-only demonstration with two fixed ten-note rows', () => {
+test('P10 renders standalone with two fixed ten-note rows and an explicitly labeled simulation', () => {
   const component = registry.find(panel => panel.id === 'P10').component
   const html = renderToStaticMarkup(createElement(component))
   assert.equal((html.match(/class="melody-row"/g) || []).length, 2)
@@ -87,6 +89,25 @@ test('P10 renders a standalone visual-only demonstration with two fixed ten-note
   assert.ok(html.includes('11: A4'))
   assert.ok(html.includes('20: F♯4'))
   assert.ok(html.includes('aria-current="step"'))
-  assert.ok(html.includes('Play next note'))
+  assert.ok(html.includes('Play next note (simulation)'))
   assert.ok(html.includes('Reset'))
+})
+
+test('Melody Trainer composes registered P10/P04/P06 with live touch, mapping and octave props', () => {
+  const html = renderToStaticMarkup(createElement(MelodyTrainerSurface, {
+    screen, fingerState: 5, thumb: true, baseOctave: 5, mapping: 'Finger Roll',
+  }))
+  assert.deepEqual([...html.matchAll(/data-panel-id="([^"]+)"/g)].map(match => match[1]), ['P10', 'P04', 'P06'])
+  assert.ok(html.includes('touch-marker assigned'))
+  assert.ok(html.includes('Thumb held ↑12'))
+  assert.ok(html.includes('C#6'))
+  assert.ok(html.includes('aria-current="true"'))
+  assert.ok(!html.includes('<main'))
+  assert.ok(!html.includes('<nav'))
+  const candidate = renderToStaticMarkup(createElement(MelodyTrainerSurface, {
+    screen: null, fingerState: 4, thumb: false, baseOctave: 3, mapping: 'Candidate 1',
+  }))
+  assert.ok(candidate.includes('Waiting for phone geometry'))
+  assert.ok(candidate.includes('G3'))
+  assert.equal((candidate.match(/class="fingering-card /g) || []).length, 7)
 })

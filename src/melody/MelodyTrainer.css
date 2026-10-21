@@ -1,6 +1,6 @@
-.melody-surface { padding: 16px; }
-.melody-surface h1 { margin: 16px 0; font-size: 28px; }
-.melody-surface nav { font-size: 14px; }
+.melody-support-panels { display: grid; grid-template-columns: minmax(170px, 0.65fr) minmax(0, 1.6fr); gap: 12px; margin-top: 12px; }
+.melody-support-panels > .screen-monitor, .melody-support-panels > .fingering-reference { grid-column: auto; display: block; }
+.melody-support-panels .screen-monitor .touch-monitor { width: 100%; height: auto; max-width: 340px; max-height: 180px; margin: 4px auto; }
 .melody-trainer-panel { padding: 12px; text-align: left; }
 .melody-trainer-panel > p { font-size: 13px; }
 .melody-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
@@ -18,6 +18,8 @@
 .melody-note-label { font: 15px system-ui, sans-serif; fill: currentColor; text-anchor: middle; stroke: none; }
 .melody-accessible-notes { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 600px) {
-  .melody-surface { padding: 8px; }
   .melody-trainer-panel { padding: 6px; }
+}
+@media (max-width: 760px) {
+  .melody-support-panels { grid-template-columns: 1fr; }
 }

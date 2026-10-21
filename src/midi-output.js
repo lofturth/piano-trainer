@@ -2,11 +2,18 @@ import { fingeringMappings, pitchForState } from './pitch-mapping.js'
 
 const chromaticNotes = ['C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4']
 
+export function midiNoteForPitch(pitch) {
+  if (typeof pitch !== 'string') return null
+  const match = /^([A-G]#?)(-?\d+)$/.exec(pitch)
+  if (!match) return null
+  const index = chromaticNotes.indexOf(`${match[1]}4`)
+  const note = 12 * (Number(match[2]) + 1) + index
+  return index >= 0 && Number.isInteger(note) && note >= 0 && note <= 127 ? note : null
+}
+
 export function midiNoteForState(state, thumb = false, baseOctave = 4, mapping = 'Candidate 1') {
   if (!Number.isInteger(baseOctave) || baseOctave < 1 || baseOctave > 7) return null
-  const index = chromaticNotes.indexOf(pitchForState(state, false, 4, mapping))
-  const note = index < 0 ? null : 12 * (baseOctave + 1) + index + (thumb ? 12 : 0)
-  return note !== null && note >= 0 && note <= 127 ? note : null
+  return midiNoteForPitch(pitchForState(state, thumb, baseOctave, mapping))
 }
 
 export class MidiOutput {
@@ -58,6 +65,6 @@ export class MidiOutput {
     this.stop()
     this.activeNote = note
     this.output.send([0x90, note, 100])
-    this.onNoteOn(pitchForState(state, thumb, baseOctave, mapping))
+    this.onNoteOn(pitchForState(state, thumb, baseOctave, mapping), note)
   }
 }
