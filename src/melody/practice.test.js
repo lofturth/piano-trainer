@@ -101,3 +101,25 @@ test('generated repeated notes still require distinct real MIDI attacks', () => 
   player.play(3)
   assert.equal(practice.progress.position, 2)
 })
+
+test('mixed reading chooses each presentation independently and allows runs', async () => {
+  const { generatePresentations } = await import('./practice.js')
+  let calls = 0
+  const choices = generatePresentations(() => [0.1, 0.2, 0.8, 0.9][calls++ % 4])
+  assert.equal(calls, 50)
+  assert.deepEqual(choices.slice(0, 4), ['letter', 'letter', 'staff', 'staff'])
+  assert.equal(choices.filter(choice => choice === 'letter').length, 26)
+})
+
+test('presentation choices survive progress and Reset; New Sequence refreshes them', () => {
+  const initial = initialPractice(['C'], () => 0.1)
+  const advanced = simulatePracticeNote(initial)
+  assert.equal(advanced.presentations, initial.presentations)
+  const reset = resetPractice(advanced)
+  assert.equal(reset.sequence, initial.sequence)
+  assert.equal(reset.presentations, initial.presentations)
+  const next = newPracticeSequence(advanced, () => 0.9)
+  assert.notEqual(next.presentations, initial.presentations)
+  assert.ok(next.presentations.every(choice => choice === 'staff'))
+  assert.ok(initial.presentations.every(choice => choice === 'letter'))
+})

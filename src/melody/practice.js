@@ -30,12 +30,16 @@ export function generateSequence(selected, random = Math.random, previous = []) 
   return sequence
 }
 
+export function generatePresentations(random = Math.random) {
+  return Array.from({ length: sequenceLength }, () => random() < 0.5 ? 'letter' : 'staff')
+}
+
 export function initialPractice(selected = ['C'], random = Math.random) {
-  return { selected: [...selected], sequence: generateSequence(selected, random), progress: initialProgression() }
+  return { selected: [...selected], sequence: generateSequence(selected, random), presentations: generatePresentations(random), progress: initialProgression() }
 }
 
 export function newPracticeSequence(state, random = Math.random) {
-  return { ...state, sequence: generateSequence(state.selected, random, state.sequence), progress: initialProgression() }
+  return { ...state, sequence: generateSequence(state.selected, random, state.sequence), presentations: generatePresentations(random), progress: initialProgression() }
 }
 
 export function togglePracticeNote(state, note, random = Math.random) {

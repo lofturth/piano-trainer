@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { notationPitch } from './notation.js'
 import { notesPerRow } from './progression.js'
 
-export default function MelodyStaff({ notes, start, position, row }: {
-  notes: readonly (string | null)[]; start: number; position: number; row: number
+export default function MelodyStaff({ notes, start, position, row, presentations }: {
+  notes: readonly (string | null)[]; start: number; position: number; row: number; presentations?: readonly ('letter' | 'staff')[]
 }) {
   const host = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
@@ -23,7 +23,7 @@ export default function MelodyStaff({ notes, start, position, row }: {
       const context = renderer.getContext()
       const stave = new Stave(10, 65, 1060).addClef('treble')
       stave.setContext(context).draw()
-      const placements: { group: SVGElement; x: number; label: string }[] = []
+      const placements: { group: SVGElement; x: number; label: string; presentation?: 'letter' | 'staff' }[] = []
       let top = stave.getYForLine(0) - 20
       let bottom = stave.getYForLine(4) + 20
       notes.forEach((pitch, slot) => {
@@ -47,14 +47,16 @@ export default function MelodyStaff({ notes, start, position, row }: {
         const stem = note.getStemExtents()
         top = Math.min(top, note.getYs()[0] - 22, stem.topY - 8, stem.baseY - 8)
         bottom = Math.max(bottom, note.getYs()[0] + 22, stem.topY + 8, stem.baseY + 8)
-        placements.push({ group, x, label })
+        const presentation = presentations?.[index]
+        if (presentation === 'letter') group.replaceChildren()
+        placements.push({ group, x, label, presentation })
         context.closeGroup()
       })
       const svg = element.querySelector('svg')!
       top = Math.floor(top) - 8
       const labelY = Math.ceil(bottom) + 20
       const height = labelY - top + 12
-      placements.forEach(({ group, x, label }) => {
+      placements.forEach(({ group, x, label, presentation }) => {
         const highlight = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
         highlight.setAttribute('class', 'note-highlight')
         highlight.setAttribute('x', String(x - 34))
@@ -63,11 +65,12 @@ export default function MelodyStaff({ notes, start, position, row }: {
         highlight.setAttribute('height', String(height - 8))
         highlight.setAttribute('rx', '7')
         group.prepend(highlight)
+        if (presentation === 'staff') return
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
         text.setAttribute('x', String(x))
         text.setAttribute('y', String(labelY))
         text.setAttribute('class', 'melody-note-label')
-        text.textContent = label
+        text.textContent = presentation === 'letter' ? label.replace(/[0-9]+$/, '').replace('♯', '#') : label
         group.append(text)
       })
       renderer.resize(1080, height)
@@ -78,7 +81,7 @@ export default function MelodyStaff({ notes, start, position, row }: {
       if (!disposed) setError(`Notation could not load: ${String(reason)}`)
     })
     return () => { disposed = true; element.replaceChildren() }
-  }, [notes, start])
+  }, [notes, start, presentations])
 
   useEffect(() => {
     currentPosition.current = position

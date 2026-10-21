@@ -16,6 +16,7 @@ export default function MelodyTrainerPanel({ subscribeNoteOn, baseOctave = 4, fi
 } = {}) {
   const [practice, setPractice] = useState(() => initialPractice())
   const [hold] = useState(() => createPracticeHold())
+  const [mixedReading, setMixedReading] = useState(false)
   const [holdDuration, setHoldDuration] = useState(500)
   const [holdProgress, setHoldProgress] = useState(0)
   const { progress, sequence, selected } = practice
@@ -60,9 +61,11 @@ export default function MelodyTrainerPanel({ subscribeNoteOn, baseOctave = 4, fi
       <button type="button" disabled={complete} onClick={() => { hold.cancel(); setPractice(simulatePracticeNote) }}>Play next note (simulation)</button>
       <button type="button" onClick={() => { hold.cancel(); setPractice(resetPractice) }}>Reset</button>
       <p role="status" aria-live="polite">{complete ? `Melody complete · ${melody.length} notes completed` :
-        `Note ${progress.position + 1} of ${melody.length} · ${notationPitch(melody[progress.position]).label} · Row ${Math.floor(progress.position / 10) % 2 + 1}`}</p>
+        `Note ${progress.position + 1} of ${melody.length} · ${mixedReading ? '' : `${notationPitch(melody[progress.position]).label} · `}Row ${Math.floor(progress.position / 10) % 2 + 1}`}</p>
     </div>
     <div className="melody-hold-controls">
+      <label><input type="checkbox" checked={mixedReading}
+        onChange={event => setMixedReading(event.target.checked)} /> Mixed Reading</label>
       <progress aria-label="Current note hold progress" max={1} value={holdProgress} />
       <label>Hold <input type="range" min={100} max={1000} step={50} value={holdDuration}
         onChange={event => {
@@ -72,6 +75,7 @@ export default function MelodyTrainerPanel({ subscribeNoteOn, baseOctave = 4, fi
         }} /> <output>{holdDuration} ms</output></label>
     </div>
     {rows.map((notes, row) => <MelodyStaff key={row} row={row + 1} notes={notes}
-      start={progress.rowStarts[row]} position={progress.position} />)}
+      start={progress.rowStarts[row]} position={progress.position}
+      presentations={mixedReading ? practice.presentations : undefined} />)}
   </Panel>
 }

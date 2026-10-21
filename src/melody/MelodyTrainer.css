@@ -31,5 +31,5 @@
 .melody-hold-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 6px 0; font-size: 12px; }
 .melody-hold-controls progress { width: 140px; height: 8px; accent-color: #9333ea; }
 .melody-hold-controls label { display: flex; align-items: center; gap: 6px; }
-.melody-hold-controls input { width: 120px; margin: 0; }
+.melody-hold-controls input[type="range"] { width: 120px; margin: 0; }
 .melody-hold-controls output { min-width: 50px; }
