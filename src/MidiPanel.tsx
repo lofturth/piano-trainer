@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MidiOutput } from './midi-output.js'
 import type { MappingName } from './pitch-mapping.js'
+import Panel from './panels/Panel.tsx'
+import { panelDefinitions } from './panels/panel-definitions.ts'
 
 export default function MidiPanel({ register, onNoteOn, baseOctave, mapping }: {
   mapping: MappingName
@@ -128,7 +130,7 @@ export default function MidiPanel({ register, onNoteOn, baseOctave, mapping }: {
     }
   }
 
-  return <section className="midi-panel" aria-label="MIDI output">
+  return <Panel definition={panelDefinitions.midi} className="midi-panel">
     <button type="button" onClick={enabled ? disable : enable} disabled={permission === 'Requesting MIDI access…'}>
       {enabled ? 'Disable MIDI' : 'Enable MIDI'}
     </button>
@@ -137,5 +139,5 @@ export default function MidiPanel({ register, onNoteOn, baseOctave, mapping }: {
       {outputs.map(port => <option key={port.id} value={port.id}>{port.name || port.id}</option>)}
     </select></label>
     <p role="status">Permission: {permission} · {outputStatus}</p>
-  </section>
+  </Panel>
 }

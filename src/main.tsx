@@ -4,9 +4,13 @@ import './index.css'
 import App from './App.tsx'
 import FingerPage from './FingerPage.tsx'
 
+import MelodyTrainerSurface from './MelodyTrainerSurface.tsx'
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {location.pathname === '/controller' || location.pathname === '/trainer'
+    {location.pathname === '/melody-trainer'
+      ? <MelodyTrainerSurface />
+      : location.pathname === '/controller' || location.pathname === '/trainer'
       ? <FingerPage controller={location.pathname === '/controller'} />
       : <App />}
   </StrictMode>,

@@ -1,0 +1,23 @@
+.melody-surface { padding: 16px; }
+.melody-surface h1 { margin: 16px 0; font-size: 28px; }
+.melody-surface nav { font-size: 14px; }
+.melody-trainer-panel { padding: 12px; text-align: left; }
+.melody-trainer-panel > p { font-size: 13px; }
+.melody-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+.melody-actions button { border: 1px solid var(--border); border-radius: 5px; padding: 8px 12px; font: inherit; font-size: 14px; cursor: pointer; background: var(--bg); color: var(--text-h); }
+.melody-actions button:disabled { cursor: default; opacity: 0.5; }
+.melody-actions p { font-size: 14px; }
+.melody-row { margin: 10px 0; background: #fff; color: #202534; border: 1px solid var(--border); border-radius: 5px; }
+.melody-staff { aspect-ratio: 1080 / 230; }
+.melody-staff svg { display: block; width: 100%; height: auto; }
+.melody-note { color: #202534; }
+.melody-note[data-state="completed"] { color: #a0a5af; opacity: 0.5; }
+.melody-note[data-state="current"] { color: #7020b4; }
+.note-highlight { fill: transparent; stroke: transparent; }
+.melody-note[data-state="current"] > .note-highlight { fill: #a855f71a; stroke: #9333ea; stroke-width: 2; }
+.melody-note-label { font: 15px system-ui, sans-serif; fill: currentColor; text-anchor: middle; stroke: none; }
+.melody-accessible-notes { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 600px) {
+  .melody-surface { padding: 8px; }
+  .melody-trainer-panel { padding: 6px; }
+}
