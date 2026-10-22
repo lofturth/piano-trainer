@@ -7,7 +7,7 @@ Prototype mode: keep experiments disposable; no production hardening implied.
 - Mac React/Vite app: Trainer, Playing View, Melody Trainer, and Force Microscope.
 - Safari controller: saved five-finger calibration, live positions, fixed finger
   assignment until release/cancel, reconnect to the saved Mac hostname.
-- Native sibling `../TouchMicroscope`: UIKit five-finger calibration, matching
+- Native `native/TouchMicroscope`: UIKit five-finger calibration, matching
   regions/colors, combined state per touch callback, timing table, Copy Results,
   Reset, and URLSession WebSocket connection. Press/release snapshots and immediate
   movement-only snapshots include normalized coordinates for the Mac TouchMonitor.
@@ -24,7 +24,7 @@ Prototype mode: keep experiments disposable; no production hardening implied.
    Playing View shows fingertips; `/force-microscope` shows timing and MIDI traces.
 3. Safari alternative: `http://<Mac-hostname>.local:5173/controller`; save to Home
    Screen. Calibrate Thumb, Index, Middle, Ring, Pinky if needed.
-4. Native: open `../TouchMicroscope/TouchMicroscope.xcodeproj` in Xcode 16+,
+4. Native: open `native/TouchMicroscope/TouchMicroscope.xcodeproj` in Xcode 16+,
    select the iPhone and signing Team, Run (iOS 16+; Developer Mode required).
    Gear opens Connect, Calibrate, Reset, Copy Results, and diagnostics. Default
    address is `ws://Lofturs-MacBook-Air.local:8765`; edit for another Mac and allow
@@ -61,9 +61,9 @@ Prototype mode: keep experiments disposable; no production hardening implied.
 - Relay is unauthenticated local-network tooling, one controller at a time; not an
   Internet service. Browser MIDI needs a secure context (Mac localhost is suitable).
 - Both projects are MIT licensed; dependencies retain their own licenses.
-- Native repository has no configured remote. Its local initial commit is the only
-  Git copy until a remote or independent backup is explicitly arranged.
-  Native return-point commit: `2f131b0`.
+- Native source now lives in this repository at `native/TouchMicroscope/` and is
+  saved with piano-trainer. The old `../TouchMicroscope` directory is an untouched
+  standalone backup (commit `2f131b0`); make future edits in the integrated copy.
 
 ## Next experiments
 
@@ -80,3 +80,7 @@ Prototype mode: keep experiments disposable; no production hardening implied.
 Relay tests used ephemeral localhost ports, leaving running servers untouched.
 Native signed iPhone build/install/launch passed earlier in this session; only
 README and privacy-manifest housekeeping changed afterward. No full audit performed.
+
+Integration verification: the relocated Xcode project builds for iPhone using
+its existing bundle identifier and signing settings. Runtime behavior is unchanged;
+no Mac code, protocol, or calibration keys were modified.
