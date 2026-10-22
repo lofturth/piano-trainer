@@ -155,3 +155,48 @@ test('relay preserves actual geometry and multitouch data independently of the M
   replacement.send(JSON.stringify({ type: 'fingers', state: 0, thumb: false, seq: 0, t: 0 }))
   assert.deepEqual(await received, { type: 'fingers', state: 0, thumb: false, seq: 0, t: 0 })
 })
+
+test('Force Microscope forwards phone results and Reset without buffering finger events', async context => {
+  const { computeArrivals } = await import('../src/timing.js')
+  const server = startRelay(0, '127.0.0.1')
+  context.after(async () => {
+    for (const socket of server.clients) socket.terminate()
+    await new Promise(resolve => server.close(resolve))
+  })
+  await once(server, 'listening')
+  const url = `ws://127.0.0.1:${server.address().port}`
+  const trainer = new WebSocket(url)
+  await once(trainer, 'open')
+  const registered = message(trainer, value => value.type === 'status')
+  trainer.send(JSON.stringify({ role: 'trainer' }))
+  await registered
+  const phone = new WebSocket(url)
+  await once(phone, 'open')
+  const phoneRegistered = message(phone, value => value.type === 'status')
+  phone.send(JSON.stringify({ role: 'controller' }))
+  await phoneRegistered
+  const first = message(trainer, value => value.type === 'fingers')
+  phone.send(JSON.stringify({ type: 'fingers', state: 0, seq: 0, t: 0 }))
+  assert.equal((await first).seq, 0)
+  // Musical event arrives without waiting for the separate timing result.
+  const musical = message(trainer, value => value.type === 'fingers')
+  phone.send(JSON.stringify({ type: 'fingers', state: 3, seq: 1, t: 101.2, sentAt: 101.23456789, handlerAt: 101.21234567 }))
+  const received = await musical
+  assert.equal(received.state, 3)
+  assert.equal(received.seq, 1)
+  assert.equal(received.sentAt, 101.23456789)
+  assert.equal(received.handlerAt, 101.21234567)
+  const measurement = computeArrivals([{ finger: 'Middle', timestamp: 101.2 }, { finger: 'Index', timestamp: 100 }])
+  const result = message(trainer, value => value.type === 'timing')
+  phone.send(JSON.stringify({ type: 'timing', measurement }))
+  assert.deepEqual((await result).measurement, measurement)
+  const reset = message(phone, value => value.type === 'timing-reset')
+  trainer.send(JSON.stringify({ type: 'timing-reset' }))
+  await reset
+  const cleared = message(trainer, value => value.type === 'timing')
+  phone.send(JSON.stringify({ type: 'timing', measurement: computeArrivals([]) }))
+  assert.deepEqual((await cleared).measurement, { arrivals: [], totalSpreadMs: 0 })
+  const released = message(trainer, value => value.type === 'fingers')
+  phone.send(JSON.stringify({ type: 'fingers', state: 0, seq: 2, t: 120 }))
+  assert.equal((await released).seq, 2)
+})

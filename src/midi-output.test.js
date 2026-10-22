@@ -266,3 +266,30 @@ test('a failed port is detached even if Note Off throws', () => {
   player.play(9)
   assert.equal(sends, 2)
 })
+
+test('MIDI observer records successful sends in order after the immediate transition', async () => {
+  const bytes = []
+  const observed = []
+  const player = new MidiOutput(undefined, event => observed.push(event))
+  player.setMapping('Finger Roll')
+  player.setOutput({ send: data => bytes.push(data) })
+  player.sourceSeq = 10
+  player.play(1)
+  player.play(1)
+  player.sourceSeq = 11
+  player.play(5)
+  player.sourceSeq = 12
+  player.play(0)
+  player.sourceSeq = undefined
+  assert.deepEqual(bytes, [[0x90, 60, 100], [0x80, 60, 0], [0x90, 61, 100], [0x80, 61, 0]])
+  assert.deepEqual(observed, [])
+  await Promise.resolve()
+  assert.deepEqual(observed.map(({ type, midi }) => [type, midi]), [['On', 60], ['Off', 60], ['On', 61], ['Off', 61]])
+  assert.deepEqual(observed.map(event => event.seq), [10, 11, 11, 12])
+  assert.ok(observed.every((event, index) => Number.isFinite(event.timestamp)
+    && (index === 0 || event.timestamp >= observed[index - 1].timestamp)))
+  player.setOutput({ send() { throw new Error('Disconnected') } })
+  assert.throws(() => player.play(1), /Disconnected/)
+  await Promise.resolve()
+  assert.equal(observed.length, 4)
+})

@@ -39,3 +39,7 @@ html:has(.controller-page), body:has(.controller-page) { overflow: hidden; overs
 .calibration-guide { position: absolute; top: calc(env(safe-area-inset-top) + 72px); left: max(18px, env(safe-area-inset-left)); right: max(18px, env(safe-area-inset-right)); display: grid; gap: 8px; color: #e3edf4; pointer-events: none; }
 .calibration-guide span, .calibration-guide small { font-size: 13px; color: #a4b7c7; }
 .calibration-notice { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 60px); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); font-size: 13px; pointer-events: none; color: #e3edf4; }
+
+.finger-group-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 8px 0; font-size: 13px; }
+.finger-group-controls label { display: flex; align-items: center; gap: 5px; }
+.finger-group-controls select { font: inherit; color: var(--text-h); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 3px; }

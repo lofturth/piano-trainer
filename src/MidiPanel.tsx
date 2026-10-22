@@ -1,16 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MidiOutput } from './midi-output.js'
+import type { MidiEvent } from './midi-output.js'
+import { createFingerGrouping } from './finger-grouping.js'
+import type { GroupingMode } from './finger-grouping.js'
 import type { MappingName } from './pitch-mapping.js'
 import Panel from './panels/Panel.tsx'
 import { panelDefinitions } from './panels/panel-definitions.ts'
 
-export default function MidiPanel({ register, onNoteOn, baseOctave, mapping }: {
+export default function MidiPanel({ register, onNoteOn, onMidiEvent, baseOctave, mapping, groupingWindow = 0, groupingMode = 'fixed', registerCancel }: {
+  groupingWindow?: number
+  groupingMode?: GroupingMode
+  registerCancel?: (cancel: () => void) => void
   mapping: MappingName
   baseOctave: number
-  register: (receive: (state: number, thumb?: boolean) => void) => void
+  register: (receive: (state: number, thumb?: boolean, seq?: number) => void) => void
   onNoteOn: (note: string, midi: number) => void
+  onMidiEvent?: (event: MidiEvent) => void
 }) {
-  const [player] = useState(() => new MidiOutput(onNoteOn))
+  const [player] = useState(() => new MidiOutput(onNoteOn, onMidiEvent))
+  const [grouping] = useState(() => createFingerGrouping((state, thumb, seq) => {
+    player.sourceSeq = seq
+    try { if (!document.hidden) player.play(state, thumb) } catch (error) { fail(error) }
+    finally { player.sourceSeq = undefined }
+  }))
   const [enabled, setEnabled] = useState(false)
   const [permission, setPermission] = useState('Not requested')
   const [outputs, setOutputs] = useState<MIDIOutput[]>([])
@@ -22,29 +34,40 @@ export default function MidiPanel({ register, onNoteOn, baseOctave, mapping }: {
   const invalidate = useCallback(() => { generation.current++ }, [])
 
   const detach = useCallback(() => {
+    grouping.cancel()
     output.current = null
     setSelected('')
     player.setOutput(null)
-  }, [player])
+  }, [player, grouping])
   const fail = useCallback((error: unknown) => {
     try { detach() } catch {}
     setOutputStatus(`MIDI error: ${error instanceof Error ? error.message : String(error)}`)
     if (error instanceof DOMException && error.name === 'SecurityError') setPermission('Denied or revoked')
   }, [detach])
 
+  useLayoutEffect(() => {
+    grouping.configure(groupingWindow, groupingMode)
+  }, [grouping, groupingWindow, groupingMode])
+
   useEffect(() => {
+    grouping.cancel()
     try { player.setBaseOctave(baseOctave) } catch (error) { fail(error) }
-  }, [baseOctave, player, fail])
+  }, [baseOctave, player, fail, grouping])
 
   useEffect(() => {
+    grouping.cancel()
     try { player.setMapping(mapping, !document.hidden) } catch (error) { fail(error) }
-  }, [mapping, player, fail])
+  }, [mapping, player, fail, grouping])
 
   useEffect(() => {
-    register((state, thumb = false) => {
-      try { if (!document.hidden) player.play(state, thumb) } catch (error) { fail(error) }
+    registerCancel?.(grouping.cancelPending)
+    register((state, thumb = false, seq) => {
+      // A local all-released update without a phone seq is connection invalidation.
+      if (state === 0 && !thumb && seq === undefined) grouping.reset()
+      else grouping.push(state, thumb, seq)
     })
     const stop = () => {
+      grouping.cancel()
       try { player.stop() } catch (error) { fail(error) }
     }
     const visibility = () => { if (document.hidden) stop() }
@@ -53,6 +76,8 @@ export default function MidiPanel({ register, onNoteOn, baseOctave, mapping }: {
     window.addEventListener('beforeunload', stop)
     return () => {
       invalidate()
+      grouping.cancel()
+      registerCancel?.(() => {})
       register(() => {})
       document.removeEventListener('visibilitychange', visibility)
       window.removeEventListener('pagehide', stop)
@@ -60,7 +85,7 @@ export default function MidiPanel({ register, onNoteOn, baseOctave, mapping }: {
       if (access.current) access.current.onstatechange = null
       try { player.setOutput(null) } catch {}
     }
-  }, [register, player, fail, invalidate])
+  }, [register, registerCancel, player, fail, invalidate, grouping])
 
   const enable = async () => {
     if (!window.isSecureContext) {

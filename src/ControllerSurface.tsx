@@ -19,8 +19,8 @@ function loadCalibration(): Point[] | null {
 export default function ControllerSurface({ state, status, press, release, reset, onScreen, registerTouchReset }: {
   state: number
   status: string
-  press: (pointer: number, finger: number, time: number) => void
-  release: (pointer: number, time: number) => void
+  press: (pointer: number, finger: number, time: number, handlerAt: number) => void
+  release: (pointer: number, time: number, handlerAt: number) => void
   reset: (time: number) => void
   onScreen: (screen: Touchscreen) => void
   registerTouchReset: (clear: () => void) => void
@@ -69,6 +69,7 @@ export default function ControllerSurface({ state, status, press, release, reset
   }, [reset, clearTouches])
 
   const down = (event: PointerEvent<HTMLDivElement>) => {
+    const handlerAt = performance.now()
     if (event.pointerType === 'mouse' && event.button !== 0) return
     event.preventDefault()
     const rect = event.currentTarget.getBoundingClientRect()
@@ -81,7 +82,7 @@ export default function ControllerSurface({ state, status, press, release, reset
       if (!pending.current) pending.current = { pointer: event.pointerId, point }
       return
     }
-    press(event.pointerId, finger!, event.timeStamp)
+    press(event.pointerId, finger!, event.timeStamp, handlerAt)
   }
 
   const move = (event: PointerEvent<HTMLDivElement>) => {
@@ -90,8 +91,9 @@ export default function ControllerSurface({ state, status, press, release, reset
   }
 
   const end = (event: PointerEvent<HTMLDivElement>, commit = false) => {
+    const handlerAt = performance.now()
     if (touches.current.end(event.pointerId)) publish()
-    release(event.pointerId, event.timeStamp)
+    release(event.pointerId, event.timeStamp, handlerAt)
     if (pending.current?.pointer !== event.pointerId) return
     const { point } = pending.current
     pending.current = null

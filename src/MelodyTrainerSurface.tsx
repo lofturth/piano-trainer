@@ -5,13 +5,14 @@ import type { Touchscreen } from './touchscreen.js'
 import TouchMonitor from './TouchMonitor.tsx'
 import FingeringReferencePanel from './panels/FingeringReferencePanel.tsx'
 
-export default function MelodyTrainerSurface({ subscribeNoteOn, screen, fingerState, thumb, baseOctave, mapping }: {
+export default function MelodyTrainerSurface({ subscribeNoteOn, screen, fingerState, thumb, baseOctave, mapping, onPracticeReset }: {
   subscribeNoteOn?: SubscribeNoteOn
+  onPracticeReset?: () => void
   screen: Touchscreen | null; fingerState: number; thumb: boolean; baseOctave: number; mapping: MappingName
 }) {
   return <section className="melody-surface" aria-label="Melody Trainer surface">
     <MelodyTrainerPanel subscribeNoteOn={subscribeNoteOn} baseOctave={baseOctave}
-      fingerState={fingerState} thumb={thumb} mapping={mapping} />
+      fingerState={fingerState} thumb={thumb} mapping={mapping} onPracticeReset={onPracticeReset} />
     <div className="melody-support-panels">
       <TouchMonitor screen={screen} fingerState={fingerState} thumb={thumb} />
       <FingeringReferencePanel mapping={mapping} fingerState={fingerState} thumb={thumb} baseOctave={baseOctave} />

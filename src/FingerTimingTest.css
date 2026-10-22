@@ -1,0 +1,193 @@
+.timing-test-page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 600px;
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 16px) 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--text-h, #111);
+}
+
+.timing-test-header {
+  text-align: center;
+}
+
+.timing-test-header h1 {
+  font-size: 22px;
+  margin: 0 0 4px 0;
+}
+
+.timing-test-header p {
+  font-size: 14px;
+  color: var(--text, #666);
+  margin: 0;
+}
+
+.timing-results {
+  background: var(--code-bg, #f5f5f7);
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-idle {
+  font-size: 15px;
+  color: var(--text, #777);
+  margin: 10px 0;
+}
+
+.results-summary {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spread-headline {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+}
+
+.spread-label {
+  font-size: 14px;
+  color: var(--text, #555);
+}
+
+.spread-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent, #aa3bff);
+}
+
+.spread-sub {
+  font-size: 12px;
+  color: var(--text, #888);
+}
+
+.arrivals-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.arrival-item {
+  background: var(--bg, #fff);
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.arrival-order {
+  font-size: 11px;
+  color: var(--text, #888);
+}
+
+.arrival-finger {
+  font-size: 14px;
+}
+
+.arrival-time {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  color: var(--accent, #aa3bff);
+}
+
+.reset-button {
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 0;
+  background: var(--accent, #aa3bff);
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.reset-button:active {
+  opacity: 0.8;
+}
+
+.touch-pads-container {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  min-height: 45svh;
+}
+
+.touch-pad {
+  border: 2px solid var(--border, #ccc);
+  border-radius: 12px;
+  background: var(--code-bg, #fafafa);
+  color: var(--text-h, #222);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.touch-pad:active,
+.touch-pad.pressed {
+  background: var(--accent, #aa3bff);
+  border-color: var(--accent, #aa3bff);
+  color: #fff;
+}
+
+.touch-pad.recorded {
+  border-color: var(--accent, #aa3bff);
+}
+
+.pad-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pad-timestamp {
+  font-size: 13px;
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+}
+
+.timing-midi-history { border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+.timing-midi-history h2 { font-size: 14px; margin: 0; }
+.timing-midi-history p { font-size: 12px; margin: 4px 0; }
+.timing-midi-scroll { max-height: 220px; overflow-y: auto; }
+.timing-midi-history table { width: 100%; border-collapse: collapse; font: 12px/1.4 ui-monospace, monospace; }
+.timing-midi-history th, .timing-midi-history td { padding: 2px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+.timing-midi-history th:last-child, .timing-midi-history td:last-child { text-align: right; }
+
+.copy-results-button { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text-h); font: inherit; font-size: 13px; cursor: pointer; }
+.timing-copy-text { box-sizing: border-box; width: 100%; min-height: 140px; font: 12px ui-monospace, monospace; user-select: text; -webkit-user-select: text; }
+
+.timing-update-trace .timing-midi-scroll { max-height: 260px; overflow-x: auto; }
+.timing-update-trace table { font-size: 11px; }
+.timing-update-trace th, .timing-update-trace td { vertical-align: top; }
+.timing-update-trace td:nth-child(3), .timing-update-trace td:nth-child(4), .timing-update-trace td:nth-child(5), .timing-update-trace td:nth-child(6), .timing-update-trace td:last-child { white-space: nowrap; }
+.timing-update-trace small { display: block; white-space: normal; font-size: 10px; }

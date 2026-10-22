@@ -1,12 +1,14 @@
 import { WebSocket, WebSocketServer } from 'ws'
 import { pathToFileURL } from 'node:url'
 import { validScreen } from '../src/touchscreen.js'
+import { validTimingMeasurement } from '../src/timing.js'
 
 export function startRelay(port = 8765, host = '0.0.0.0') {
   const server = new WebSocketServer({ port, host, maxPayload: 4096 })
   let controller = null
   let latest = null
   let latestScreen = null
+  let latestTiming = null
   let lastSeen = 0
   const send = (socket, message) => {
     if (socket.readyState !== WebSocket.OPEN) return
@@ -23,6 +25,10 @@ export function startRelay(port = 8765, host = '0.0.0.0') {
     controller = null
     latest = null
     latestScreen = null
+    latestTiming = null
+    for (const peer of server.clients) {
+      if (peer.role === 'trainer') send(peer, { type: 'timing', measurement: { arrivals: [], totalSpreadMs: 0 } })
+    }
     status()
   }
   server.on('connection', socket => {
@@ -44,10 +50,24 @@ export function startRelay(port = 8765, host = '0.0.0.0') {
         }
         status()
         if (role === 'trainer' && latest) send(socket, latest)
+        if (role === 'trainer' && latestTiming) send(socket, latestTiming)
         if (role === 'trainer' && latestScreen) send(socket, { type: 'touches', screen: latestScreen })
         return
       }
+      if (role === 'trainer' && message.type === 'timing-reset') {
+        if (controller) send(controller, { type: 'timing-reset' })
+        return
+      }
       if (socket !== controller) return
+      if (message.type === 'timing') {
+        if (validTimingMeasurement(message.measurement)) {
+          latestTiming = { type: 'timing', measurement: message.measurement }
+          for (const peer of server.clients) {
+            if (peer.role === 'trainer') send(peer, latestTiming)
+          }
+        }
+        return
+      }
       if (message.type === 'touches') {
         if (validScreen(message.screen)) {
           lastSeen = performance.now()
@@ -62,7 +82,7 @@ export function startRelay(port = 8765, host = '0.0.0.0') {
         lastSeen = performance.now()
         return
       }
-      const { type, state, thumb = false, seq, t } = message
+      const { type, state, thumb = false, seq, t, sentAt, handlerAt } = message
       if (type !== 'fingers' || !Number.isInteger(state) || state < 0 || state > 15
         || typeof thumb !== 'boolean'
         || !Number.isSafeInteger(seq) || seq < 0 || !Number.isFinite(t) || t < 0
@@ -71,7 +91,9 @@ export function startRelay(port = 8765, host = '0.0.0.0') {
         return socket.close(1008, 'Invalid finger sequence; reconnect')
       }
       lastSeen = performance.now()
-      latest = { type, state, thumb, seq, t }
+      latest = { type, state, thumb, seq, t,
+        ...(Number.isFinite(sentAt) && sentAt >= 0 ? { sentAt } : {}),
+        ...(Number.isFinite(handlerAt) && handlerAt >= 0 ? { handlerAt } : {}) }
       if (validScreen(message.screen)) {
         latestScreen = message.screen
         latest.screen = latestScreen

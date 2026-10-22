@@ -17,8 +17,10 @@ export function midiNoteForState(state, thumb = false, baseOctave = 4, mapping =
 }
 
 export class MidiOutput {
-  constructor(onNoteOn = () => {}) {
+  constructor(onNoteOn = () => {}, onMidiEvent) {
     this.onNoteOn = onNoteOn
+    this.onMidiEvent = onMidiEvent
+    this.sourceSeq = undefined
     this.output = null
     this.activeNote = null
     this.previousState = 0
@@ -27,10 +29,20 @@ export class MidiOutput {
     this.mapping = 'Candidate 1'
   }
 
+  reportMidiEvent(type, midi) {
+    if (!this.onMidiEvent) return
+    const event = { type, midi, timestamp: performance.now(), seq: this.sourceSeq }
+    // Observe after send; defer display work until the immediate MIDI transition finishes.
+    queueMicrotask(() => this.onMidiEvent(event))
+  }
+
   stop() {
     const note = this.activeNote
     this.activeNote = null
-    if (note !== null && this.output) this.output.send([0x80, note, 0])
+    if (note !== null && this.output) {
+      this.output.send([0x80, note, 0])
+      this.reportMidiEvent('Off', note)
+    }
   }
 
   setOutput(output) {
@@ -65,6 +77,7 @@ export class MidiOutput {
     this.stop()
     this.activeNote = note
     this.output.send([0x90, note, 100])
+    this.reportMidiEvent('On', note)
     this.onNoteOn(pitchForState(state, thumb, baseOctave, mapping), note)
   }
 }

@@ -11,7 +11,8 @@ import type { MappingName } from '../pitch-mapping.js'
 import { midiNoteForPitch, midiNoteForState } from '../midi-output.js'
 import { createPracticeHold } from '../melody/hold.js'
 
-export default function MelodyTrainerPanel({ subscribeNoteOn, baseOctave = 4, fingerState = 0, thumb = false, mapping = 'Finger Roll' }: {
+export default function MelodyTrainerPanel({ subscribeNoteOn, baseOctave = 4, fingerState = 0, thumb = false, mapping = 'Finger Roll', onPracticeReset }: {
+  onPracticeReset?: () => void
   subscribeNoteOn?: SubscribeNoteOn; baseOctave?: number; fingerState?: number; thumb?: boolean; mapping?: MappingName
 } = {}) {
   const [practice, setPractice] = useState(() => initialPractice())
@@ -52,14 +53,14 @@ export default function MelodyTrainerPanel({ subscribeNoteOn, baseOctave = 4, fi
       <span>Practice notes</span>
       {practiceNotes.map(note => <button key={note} type="button" aria-pressed={selected.includes(note)}
         disabled={selected.length === 1 && selected[0] === note}
-        onClick={() => { hold.cancel(); setPractice(previous => togglePracticeNote(previous, note)) }}>
+        onClick={() => { hold.cancel(); onPracticeReset?.(); setPractice(previous => togglePracticeNote(previous, note)) }}>
         {note.replace('#', '♯')}
       </button>)}
     </div>
     <div className="melody-actions">
-      <button type="button" onClick={() => { hold.cancel(); setPractice(previous => newPracticeSequence(previous)) }}>New Sequence</button>
+      <button type="button" onClick={() => { hold.cancel(); onPracticeReset?.(); setPractice(previous => newPracticeSequence(previous)) }}>New Sequence</button>
       <button type="button" disabled={complete} onClick={() => { hold.cancel(); setPractice(simulatePracticeNote) }}>Play next note (simulation)</button>
-      <button type="button" onClick={() => { hold.cancel(); setPractice(resetPractice) }}>Reset</button>
+      <button type="button" onClick={() => { hold.cancel(); onPracticeReset?.(); setPractice(resetPractice) }}>Reset</button>
       <p role="status" aria-live="polite">{complete ? `Melody complete · ${melody.length} notes completed` :
         `Note ${progress.position + 1} of ${melody.length} · ${mixedReading ? '' : `${notationPitch(melody[progress.position]).label} · `}Row ${Math.floor(progress.position / 10) % 2 + 1}`}</p>
     </div>
