@@ -1,6 +1,8 @@
-# webapp-starter
+# piano-trainer
 
-A clean, minimal starter template for React, TypeScript, and Vite projects.
+Experimental browser instrument with Safari/native iPhone controllers, MIDI output,
+melody practice, and touch-timing diagnostics. See [SESSION_STATE.md](SESSION_STATE.md)
+for the current return point.
 
 ## Five-finger controller (local Wi-Fi)
 
@@ -11,10 +13,25 @@ npm run relay
 npm run dev:lan
 ```
 
-Open `http://localhost:5173/trainer` on the Mac and
-`http://<Mac-LAN-IP>:5173/controller` in iPhone Safari. Use the actual port
-printed by Vite if 5173 is occupied. Both devices must be on a reachable local
-network; allow the Mac firewall and any browser local-network permission prompts.
+Open `http://localhost:5173/trainer` on the Mac. In iPhone Safari, open the
+`http://<Mac-hostname>.local:5173/controller` URL printed by Vite at startup.
+On macOS this uses the Bonjour LocalHostName (`scutil --get LocalHostName`),
+so numeric IP changes do not require entering a new address. Both servers listen
+on the LAN. Port 5173 is fixed: if occupied, stop the conflicting server and retry.
+
+Save the controller URL with Safari's Share → Add to Home Screen (or bookmark it).
+The saved browser URL remembers the server address; the controller reconnects to
+that same hostname automatically after temporary loss or a relay restart. It shows
+“Disconnected · waiting for server” while the relay is unavailable. No address
+re-entry or page refresh is needed for a loaded controller. Return to the controller
+after backgrounding, and lift/re-touch fingers after reconnecting.
+
+Both devices must be on a reachable local network that supports Bonjour/mDNS;
+allow the Mac firewall and any browser local-network permission prompts. Guest
+Wi-Fi/client isolation can block this. If `.local` cannot resolve, a numeric IP
+still works, but loses stability across IP changes. The Mac must be awake with
+both server commands running. A saved link cannot load an unopened page while
+the web server is stopped; reopen it after restarting the server.
 The relay listens on port 8765; stop the two-iphones relay if it uses that port.
 The original starter remains at `/`.
 
@@ -29,7 +46,22 @@ in CSS pixels, normalized calibration centers (Thumb first), and active touches
 `{id,x,y,finger}`. Assigned fingers use Index=0 through Pinky=3, Thumb=4, or null
 during calibration. Coordinates are surface-relative and not clamped, so captured
 drags outside the surface remain visible. The relay accepts older messages without thumb as `false`. Phone timestamps are
-not Mac wall-clock times.
+not Mac wall-clock times. Optional `sentAt` records the phone’s `performance.now()`
+immediately before the existing finger-message send; the relay preserves it for
+Force Microscope. Optional `handlerAt` records `performance.now()` as the first
+statement of each pointer-down/end app handler (before application work).
+Current WebKit exposes `event.timeStamp` relative to the same performance time
+origin, with potentially reduced resolution. Its difference from handler entry
+includes browser/React dispatch and is not a physical touchscreen latency measure.
+Touch, handler entry, and send times share the phone clock; Mac receipt/MIDI
+times use a separate Mac clock.
+
+Force Microscope uses the controller's first Index/Middle/Ring/Pinky touch-down
+`event.timeStamp` values per attempt. The phone calculates arrival order, relative
+milliseconds, and total spread, then sends a separate `{type:"timing", measurement}`
+message after the immediate musical message. The relay forwards results to trainers.
+Reset / Repeat sends `{type:"timing-reset"}` back to the phone; it clears the attempt
+and returns an empty result. Reconnection also clears the measurement.
 Touches stay assigned to their original region until release or cancellation,
 even when dragged across a boundary. Multiple touches in one region hold that
 bit until the last touch releases.
@@ -269,3 +301,8 @@ Projects created from this template follow Semantic Versioning (`MAJOR.MINOR.PAT
 ├── vite.config.ts
 └── wrangler.jsonc
 ```
+
+## License and experiment notes
+
+MIT licensed; see [LICENSE](LICENSE). Third-party dependencies retain their own licenses.
+Session findings and the next experiment are recorded in [timing experiments](docs/timing-experiments.md).
